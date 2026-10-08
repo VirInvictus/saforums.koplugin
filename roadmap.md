@@ -77,6 +77,10 @@ Spec (Rendering) is the contract for the new surface.
       back-to-close, per-thread scroll-position memory, zero reader side effects
       (no history, no sidecars). Replaces EPUB-in-ReaderUI as the reading surface
       (2026-10-08, Brandon's call after the on-device verdict).
+- [x] Awful.app design port: the posts-view theme transcribed to grayscale
+      (post cards, seen tint, avatar/name-and-date header, OP badge, dense
+      14-unit body text, frog end marker) per Brandon's "a port of THAT"
+      direction; the LESS files in the reference clone are the design law.
 - [ ] The thread-EPUB stylesheet to spec (spec: Typography): em/urem units only,
       no font-family, no line-height, `body { margin: 0 }`, #555 meta ink, #888
       hairlines, two-tier post headers, blockquote left rules, no background

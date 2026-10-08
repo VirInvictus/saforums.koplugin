@@ -330,15 +330,8 @@ function SaforumsUI:open_thread(thread, page_number)
                 seen_poster[uid] = true
                 local cached = avatar_cache.ensure(dir .. "/avatars", self.session, uid, post.avatar_src)
                 if cached then
-                    local handle = io.open(cached, "rb")
-                    if handle then
-                        local data = handle:read("*a")
-                        handle:close()
-                        if data and #data > 0 then
-                            local mime = avatar_cache.mime_for(post.avatar_src)
-                            avatars[uid] = { data = data, mime = mime }
-                        end
-                    end
+                    -- Relative to the resource directory mupdf resolves images against.
+                    avatars[uid] = "avatars/" .. cached:match("([^/]+)$")
                 end
             end
         end
@@ -352,6 +345,7 @@ function SaforumsUI:open_thread(thread, page_number)
                 posts = parsed.posts,
                 avatars = avatars,
             }),
+            resource_directory = dir,
             saved_ratio = self:get_position(thread_id),
             on_close = function(ratio)
                 self:save_position(thread_id, ratio)

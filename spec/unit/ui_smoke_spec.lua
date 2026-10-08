@@ -53,7 +53,7 @@ preload("ui/widget/verticalgroup", { new = function(_, items) return items end }
 preload("ui/widget/container/framecontainer", { new = function(_, options) return options end })
 preload("device", {
     hasKeys = function() return false end,
-    screen = { getWidth = function() return 1264 end, getHeight = function() return 1680 end },
+    screen = { getWidth = function() return 1264 end, getHeight = function() return 1680 end, scaleBySize = function(_, n) return n end },
     input = { group = { Back = "Back" } },
 })
 preload("ui/widget/container/inputcontainer", {

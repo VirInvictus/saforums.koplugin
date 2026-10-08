@@ -18,29 +18,45 @@ describe("threadhtml", function()
             title = "The Thread You Are Currently Reading (fixture)",
             posts = parsed.posts,
             avatars = {
-                ["103"] = { data = "\137PNG\r\n\x1a\n", mime = "image/png" },
+                ["103"] = "avatars/103.gif",
+                ["104"] = "avatars/104.png",
             },
         }
     end)
 
-    it("renders one bordered card per post, first exempt", function()
+    it("renders a fragment: one card per post, first exempt, seen tinted", function()
         local html = threadhtml.render(doc)
-        assert.matches('<div class="post first">', html)
-        assert.equals(2, select(2, html:gsub('<div class="post">', "")))
+        assert.matches('^<div class="thread">', html)
+        assert.matches("</div>$", html)
+        assert.is_nil(html:find("<html>"))
+        assert.is_nil(html:find("DOCTYPE"))
+        -- posts 1 and 2 are seen in the fixture; post 3 is not
+        assert.matches('<div class="post first seen">', html)
+        assert.matches('<div class="post seen">', html)
+        assert.equals(1, select(2, html:gsub('<div class="post">', "")))
     end)
 
-    it("renders the two-tier head: author, custom title, meta line", function()
+    it("renders the Awful header: avatar, name, custom title, date, regdate", function()
         local html = threadhtml.render(doc)
-        assert.matches('<span class="postauthor">Poster Three</span>', html)
-        assert.matches('<div class="postmeta">Oct 5, 2026 12:30 &#183; post #1</div>', html)
+        assert.matches('<img class="avatar" src="avatars/103%.gif"', html)
+        assert.matches('<div class="username">Poster Three', html)
         assert.matches('<span class="usertitle">Senior Fixture</span>', html)
+        assert.matches('Oct 5, 2026 12:30', html)
+        assert.matches('&#183; post #1', html)
+        assert.matches('<div class="regdate">joined Mar 12, 2011</div>', html)
     end)
 
-    it("embeds avatars as data URIs, only for posters that have one", function()
+    it("badges the original poster exactly once", function()
         local html = threadhtml.render(doc)
-        assert.matches('src="data:image/png;base64,', html)
-        -- Poster Five has no avatar: exactly one embedded image in the doc.
-        assert.equals(1, select(2, html:gsub('class="avatar"', "")))
+        assert.matches('Poster Five', html)
+        assert.matches('<span class="opbadge">OP</span>', html)
+        assert.equals(1, select(2, html:gsub('class="opbadge"', "")))
+    end)
+
+    it("references avatars by resource-relative path, only for posters that have one", function()
+        local html = threadhtml.render(doc)
+        assert.matches('src="avatars/103%.gif"', html)
+        assert.equals(2, select(2, html:gsub('class="avatar"', "")))
     end)
 
     it("sanitizes bodies through the shared pipeline", function()
@@ -51,26 +67,28 @@ describe("threadhtml", function()
         assert.is_nil(html:find("<script"))
     end)
 
-    it("base64-encodes correctly", function()
-        assert.equals("", threadhtml.base64(""))
-        assert.equals("aGVsbG8=", threadhtml.base64("hello"))
-        assert.equals("aGVsbG8h", threadhtml.base64("hello!"))
-        assert.equals("aGVsbG8hIQ==", threadhtml.base64("hello!!"))
-        -- bytes that would be mangled by any text decoding
-        assert.equals("iVBORw0KGgr6", threadhtml.base64("\137PNG\r\n\x1a\n\xfa"))
+    it("closes the thread with the frog line at 3em", function()
+        local html = threadhtml.render(doc)
+        assert.matches('<div class="endmarker">The frog says: GET OUT%.</div>', html)
+        assert.matches("div%.endmarker { text%-align: center; line%-height: 3em", threadhtml.css)
     end)
 
-    it("ships the mupdf stylesheet without the crengine-banned properties", function()
-        assert.is_nil(threadhtml.css:find("font%-family: serif") == nil and nil or nil)
-        assert.matches("font%-family: serif", threadhtml.css) -- generic only
-        assert.is_nil(threadhtml.css:find("line%-height"))
-        assert.matches("div%.post { border%-top: 1px solid #888", threadhtml.css)
+    it("carries the Awful design tokens in the stylesheet", function()
+        local css = threadhtml.css
+        assert.matches("div%.post { display: block; border%-top: 1px solid #ccc; border%-bottom: 1px solid #ccc", css)
+        assert.matches("div%.post%.seen { background%-color: #e8e8e8", css)
+        assert.matches("img%.avatar { display: inline%-block; vertical%-align: middle; width: 2%.5em", css)
+        assert.matches("div%.username { font%-size: 1%.1em; font%-weight: bold", css)
+        assert.matches("div%.postdate { font%-size: 0%.8em; color: #999", css)
+        assert.matches("font%-family: sans%-serif", css)
+        -- no line-height locks anywhere except the 3em end marker
+        assert.equals(1, select(2, css:gsub("line%-height", "")))
     end)
 
     it("renders a document with no avatars at all", function()
         doc.avatars = nil
         local html = threadhtml.render(doc)
         assert.is_nil(html:find('class="avatar"'))
-        assert.matches('<span class="postauthor">Poster Three</span>', html)
+        assert.matches('<div class="username">Poster Three', html)
     end)
 end)

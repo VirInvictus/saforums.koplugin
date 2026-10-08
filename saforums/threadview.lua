@@ -26,6 +26,7 @@ local Screen = Device.screen
 local ThreadView = InputContainer:extend{
     title = "",
     html_body = nil,
+    resource_directory = nil, -- base dir for relative image paths (avatars)
     saved_ratio = nil,
     on_close = nil, -- receives the final scroll ratio (0..1)
 }
@@ -63,6 +64,10 @@ function ThreadView:init()
     self.scroll_widget = ScrollHtmlWidget:new{
         html_body = self.html_body,
         css = threadhtml.css,
+        html_resource_directory = self.resource_directory,
+        -- Dense by request: Awful squishes; the stock default (24) is a
+        -- large-print edition by comparison. Becomes a setting in Phase 4.
+        default_font_size = Screen:scaleBySize(14),
         width = screen_w,
         height = screen_h - titlebar:getHeight(),
         dialog = self,
