@@ -229,7 +229,7 @@ function SaforumsUI:show_forum_index()
             end
             local parsed = indexparser.parse(document)
             local items = {}
-            for _, forum in ipairs(parsed.flat) do
+            for _idx, forum in ipairs(parsed.flat) do
                 items[#items + 1] = {
                     text = string.rep("    ", forum.depth) .. forum.title,
                     forum_id = forum.id,
@@ -256,7 +256,7 @@ function SaforumsUI:show_thread_list(forum_id, page_number, title)
                 goto_page = page_number - 1,
             }
         end
-        for _, thread in ipairs(parsed.threads) do
+        for _idx, thread in ipairs(parsed.threads) do
             local text = thread.title
             if thread.sticky then text = _("[sticky] ") .. text end
             if thread.closed then text = text .. _(" (closed)") end

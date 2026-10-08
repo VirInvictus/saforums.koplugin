@@ -19,6 +19,40 @@ local _ = require("gettext")
 
 local ui = require("saforums.ui")
 
+-- Top-of-Tools placement, Storefront's mechanism: KOReader orders menu
+-- entries through these order tables, and entries missing from them land
+-- wherever default sorting leaves them (second page, in practice on the
+-- Oasis). Inserting our id near the front of order.tools pins us at the
+-- top of the Tools section in both the file manager and the reader.
+local function is_item_in_order(tbl, target_id)
+    if type(tbl) ~= "table" then return false end
+    for _pos, val in ipairs(tbl) do
+        if val == target_id then
+            return true
+        elseif type(val) == "table" then
+            if is_item_in_order(val, target_id) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function inject_saforums_into_tools_menu()
+    local menu_orders = {
+        "ui/elements/reader_menu_order",
+        "ui/elements/filemanager_menu_order",
+    }
+    for _idx, order_path in ipairs(menu_orders) do
+        local ok, order = pcall(require, order_path)
+        if ok and type(order) == "table" and type(order.tools) == "table" then
+            if not is_item_in_order(order, "saforums") then
+                table.insert(order.tools, 2, "saforums")
+            end
+        end
+    end
+end
+
 local Saforums = WidgetContainer:extend{
     name = "saforums",
     is_doc_only = false,
@@ -62,11 +96,11 @@ function Saforums:onClearSession()
 end
 
 function Saforums:addToMainMenu(menu_items)
+    inject_saforums_into_tools_menu()
     menu_items.saforums = {
         text = _("SA Forums"),
-        -- "tools" is the section App Store and Storefront live in, which is
-        -- where a plugin people open daily belongs. ("more_tools" is the
-        -- overflow section this started in.)
+        -- "tools" is the section App Store and Storefront live in; the
+        -- injection above pins the position within it.
         sorting_hint = "tools",
         sub_item_table = {
             {
