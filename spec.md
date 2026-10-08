@@ -63,6 +63,32 @@ duty is to never disturb that state except on purpose:
 - Thread lists show, per thread: title, author, reply count, unread-post count, and a
   read/unread indication, parsed from the row structure below.
 
+### Composition (Phase 6)
+
+Composition exists in exactly one tier (Tier 1: reply to a thread, with quote and
+preview) and obeys rules stricter than any read path:
+
+- **Submission is one-shot.** A network error mid-post is surfaced and stops; there
+  is never an automatic retry, because a retried submission that landed twice is a
+  double post. Manual retry happens only from the composer, after the user sees the
+  failure.
+- **Preview before post, always.** Drafts are BBcode; preview renders them through
+  the same reading surface the thread uses before anything is sent.
+- **Drafts persist before any network call.** A crash, a battery death, or a closed
+  dialog never eats a post. Drafts are plain-text files under the plugin's data dir,
+  one per thread.
+- **Credentials never leave the device.** Any external editing surface (a file over
+  sshfs, a LAN compose form) hands text to the device; the device's session posts
+  it. No companion tool ever holds or sees cookies.
+- **Closed threads are checked twice**: before the composer opens and again at
+  submit time (threads close while you write).
+- **One in-flight submission, ever.** No queues, no background sends, no
+  post-and-forget.
+- The reply form's hidden fields (anti-forgery keys included) are scraped and
+  mirrored from the live form at compose time, never hardcoded.
+- Per-forum composer quirks are honored, which is where the Voice rules earn their
+  keep: a YOSPOS thread's reply control reads "YOSPOS BITHC."
+
 ### Politeness
 
 The plugin acts as the user's own browser session, at human pace:
@@ -71,9 +97,10 @@ The plugin acts as the user's own browser session, at human pace:
 - One request at a time. No background polling, no prefetch storms.
 - List refreshes are throttled (15 minutes per forum list, matching the iOS client's
   observed courtesy ceiling); a manual refresh always wins.
-- Read-only: the plugin never issues a request that creates or modifies content. The
-  only POSTs in v1 are login, `action=setseen`/`action=resetseen`, and bookmark
-  add/remove.
+- Read-only through Phase 5: the plugin never issues a request that creates or
+  modifies content. The only POSTs are login, `action=setseen`/`action=resetseen`,
+  and bookmark add/remove. Phase 6 adds exactly one mutation surface, reply
+  submissions, under the Composition rules.
 
 ## The endpoints (v1 set)
 
@@ -89,10 +116,14 @@ All relative to `https://forums.somethingawful.com/`.
 | Thread pages | `GET showthread.php?threadid=N&perpage=40` with optional `goto=newpost`, `noseen=1`, `pagenumber=K` |
 | Mark seen to index | `POST showthread.php` (`action=setseen`, `threadid`, `index`) |
 | Mark unread | `POST showthread.php` (`threadid`, `action=resetseen`, `json=1`) |
+| Reply form / quote | `GET newreply.php?action=newreply&threadid=N[, postid=M for quote]` (Phase 6) |
+| Reply submission | `POST newreply.php` (scraped form fields incl. hidden keys, one-shot, Phase 6) |
 
-Out of scope for v1 (do not send): `newreply.php`, `newthread.php`, `editpost.php`,
-`private.php`, `query.php` (search is Platinum-gated), `member2.php`, `banlist.php`,
+Out of scope (do not send): `newthread.php`, `editpost.php`, `private.php`,
+`query.php` (search is Platinum-gated), `member2.php`, `banlist.php`,
 `poll.php`, `dictionary.php`, `announcement.php`, archives endpoints.
+`newreply.php` joins the live set only when Phase 6 opens, under the Composition
+rules.
 
 ## HTML structure contract
 
@@ -125,6 +156,14 @@ Thread page:
 - Seen marker: row contains `tr.seen1` or `tr.seen2`.
 - Page identity: `body[data-thread]`, `body[data-forum]`; breadcrumbs give the thread
   title; closed state from the reply button image.
+
+Reply form (Phase 6): the `newreply.php` form is parsed as data. Hidden inputs
+(form keys, thread id, destination parameters) are captured name-for-name and
+mirrored into the submission; the visible field set is the message body, the post
+icon choice, and the signature toggle. A quote request (the same URL with `postid`)
+prefills the body with the site's own `[quote=...]` block, which the composer treats
+as text to preserve, never to re-parse. The submit response's redirect target yields
+the new post id, which is the success confirmation.
 - `goto=newpost` redirects to the correct page and drops the `perpage` parameter; the
   plugin re-injects `perpage=40` after every redirect.
 
@@ -209,6 +248,9 @@ explained.
 
 - End-of-thread marker: after the last post, one line of lore. Default text invokes
   the frog the way every thread ends, set once and never explained.
+- The composer speaks the same register: submission in progress is stated plainly,
+  success confirms with the new post's coordinates, and a double-post guard failure
+  is phrased so only the user, who has seen it before, will find it funny.
 - Empty states use site vocabulary as membership signals: an empty bookmark list is
   "Nothing to see here." A thread with no new posts says so plainly; only the second
   consecutive visit with nothing new earns a second line.

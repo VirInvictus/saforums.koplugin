@@ -121,9 +121,40 @@ one quiet message.
 Exit: a stranger with a Kobo installs it from a catalog, reads a thread, and one in
 ten grins at the right moment.
 
+## Phase 6: composition, Tier 1 (gated)
+
+**Gate: this phase does not start until Phase 2's exit holds AND the lurker loop has
+survived real daily use long enough for Brandon to still want it.** Opening the gate
+is his call, made out loud, not an automatic successor of Phase 5. Scope is exactly
+one tier: reply to a thread with quote and preview. Edit-own-post, new threads,
+attachments, and polls stay Deferred (spec: Composition rules govern everything
+here).
+
+- [ ] BBcode-to-HTML converter, pure Lua, fixture-first, targeting the exact output
+      shapes the post fixtures already capture (quotes, spoilers, basic tags).
+- [ ] Reply form as data: scrape `newreply.php`, mirror hidden fields name-for-name,
+      capture the quote prefill via `postid`.
+- [ ] Draft persistence: one plain-text BBcode draft per thread under the plugin's
+      data dir, written before any network call, editable over sshfs or in the
+      device text editor.
+- [ ] Preview through the reading surface: the draft renders as a document in the
+      same EPUB styling before anything is sent.
+- [ ] Submit with one-shot semantics: no auto-retry ever, closed-thread check at
+      both ends, one in-flight submission, new-post-id confirmation on success
+      (spec: Composition).
+- [ ] Composer voice and quirks: YOSPOS reply control reads "YOSPOS BITHC"; all
+      composer strings pass the Voice rules.
+- [ ] On-device verify: a real reply posted from the Oasis, drafted over sshfs,
+      previewed, submitted once, confirmed in the thread.
+
+Exit: Brandon posts a reply from the couch, drafted on a real keyboard, previewed
+on e-ink, exactly once.
+
 ## Deferred (not scheduled, do not start without a fresh decision)
 
-Reply/quote composition, private messages, search, polls, archives time machine,
-ignore list, rap sheet, SAclopedia reader, inline images, custom-designed thread-list
-widgets beyond KOReader's Menu (the bookshelf-grade region system is the model if
-ever approved), charts and reading-stat tie-ins.
+Edit-own-post, new threads, attachments (Platinum-gated), polls, private messages,
+search, archives time machine, ignore list, rap sheet, SAclopedia reader, inline
+images, custom-designed thread-list widgets beyond KOReader's Menu (the
+bookshelf-grade region system is the model if ever approved), charts and
+reading-stat tie-ins, LAN compose server (the draft-file workflow covers the need;
+the server is the upgrade if drafts ever feel clumsy).
