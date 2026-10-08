@@ -30,15 +30,17 @@ div.post { display: block; border-top: 1px solid #ccc; border-bottom: 1px solid 
 div.post.first { margin-top: 0; }
 div.post.seen { background-color: #e8e8e8; }
 header { padding-top: 0.75em; padding-bottom: 0.7em; }
-img.avatar { float: left; width: 2.5em; margin-right: 0.6em; }
-div.nameanddate { }
+table.userhead { width: 100%; }
+table.userhead td { vertical-align: middle; }
+td.avatarcell { width: 3em; }
+img.avatar { width: 2.5em; }
 div.username { font-size: 1.1em; font-weight: bold; margin: 0 0 2px; }
 span.opbadge { font-size: 0.65em; border: 1px solid #555; color: #555;
                padding: 0 0.25em; margin-left: 0.4em; }
 span.usertitle { display: block; font-size: 0.8em; font-style: italic; color: #555; }
 div.postdate { font-size: 0.8em; color: #999; }
 div.regdate { font-size: 0.8em; color: #999; }
-div.postbody { text-align: left; clear: both; }
+div.postbody { text-align: left; }
 div.postbody img { max-width: 100%; }
 p.editedby, div.editedby { font-size: 0.8em; color: #999; text-indent: 0; }
 blockquote { border-left: 2px solid #ccc; margin: 0.5em 0 0.5em 1em;
@@ -99,13 +101,16 @@ function threadhtml.render(doc)
         if post.seen then classes[#classes + 1] = "seen" end
         parts[#parts + 1] = '<div class="' .. table.concat(classes, " ") .. '">'
 
-        -- Awful's header: avatar beside an inline name-and-date block.
+        -- Awful's header: avatar cell beside the name-and-date cell. A real
+        -- table because mupdf ignores floats and wraps inline-blocks.
         parts[#parts + 1] = "<header>"
+        parts[#parts + 1] = '<table class="userhead"><tr>'
         local src = avatar_src(doc.avatars, post.author_id)
         if src then
-            parts[#parts + 1] = '<img class="avatar" src="' .. xml_escape(src) .. '" alt=""/>'
+            parts[#parts + 1] = '<td class="avatarcell"><img class="avatar" src="'
+                .. xml_escape(src) .. '" alt=""/></td>'
         end
-        parts[#parts + 1] = '<div class="nameanddate">'
+        parts[#parts + 1] = '<td><div class="nameanddate">'
         parts[#parts + 1] = '<div class="username">'
             .. xml_escape(post.author_name or "?")
         if post.author_is_op then
@@ -126,7 +131,8 @@ function threadhtml.render(doc)
         if post.regdate and post.regdate ~= "" then
             parts[#parts + 1] = '<div class="regdate">joined ' .. xml_escape(post.regdate) .. "</div>"
         end
-        parts[#parts + 1] = "</div>"
+        parts[#parts + 1] = "</div></td>"
+        parts[#parts + 1] = "</tr></table>"
         parts[#parts + 1] = "</header>"
 
         parts[#parts + 1] = '<div class="postbody">'

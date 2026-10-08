@@ -73,17 +73,22 @@ describe("threadhtml", function()
         assert.matches("div%.endmarker { text%-align: center; line%-height: 3em", threadhtml.css)
     end)
 
-    it("floats the avatar beside the name and clears the body", function()
+    it("lays the header out as a two-cell table (mupdf ignores floats)", function()
+        local html = threadhtml.render(doc)
+        assert.matches('<table class="userhead">', html)
+        assert.matches('<td class="avatarcell"><img class="avatar" src="avatars/103%.gif"', html)
         local css = threadhtml.css
-        assert.matches("img%.avatar { float: left; width: 2%.5em", css)
-        assert.matches("div%.postbody { text%-align: left; clear: both", css)
+        assert.matches("table%.userhead { width: 100%%", css)
+        assert.matches("td%.avatarcell { width: 3em", css)
+        -- no float: mupdf ignores it
+        assert.is_nil(css:find("float"))
     end)
 
     it("carries the Awful design tokens in the stylesheet", function()
         local css = threadhtml.css
         assert.matches("div%.post { display: block; border%-top: 1px solid #ccc; border%-bottom: 1px solid #ccc", css)
         assert.matches("div%.post%.seen { background%-color: #e8e8e8", css)
-        assert.matches("img%.avatar { float: left; width: 2%.5em", css)
+        assert.matches("img%.avatar { width: 2%.5em", css)
         assert.matches("div%.username { font%-size: 1%.1em; font%-weight: bold", css)
         assert.matches("div%.postdate { font%-size: 0%.8em; color: #999", css)
         assert.matches("font%-family: sans%-serif", css)
