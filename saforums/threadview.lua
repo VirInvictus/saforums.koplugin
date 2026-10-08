@@ -81,6 +81,10 @@ local function post_card(post, inner_width, is_first)
     local content = {}
 
     local header = {}
+    -- Every header line is a width-bounded TextBoxWidget: a free-width
+    -- TextWidget with a long custom title overflows the screen and throws
+    -- the ScrollableContainer into horizontal mode (the glitch).
+    local name_width = inner_width - (post.avatar_file and (AVATAR_SIZE + Screen:scaleBySize(8)) or 0)
     if post.avatar_file then
         header[#header + 1] = ImageWidget:new{
             file = post.avatar_file,
@@ -90,30 +94,34 @@ local function post_card(post, inner_width, is_first)
         header[#header + 1] = HorizontalSpan:new{ width = Screen:scaleBySize(8) }
     end
     local name_block = {}
-    name_block[#name_block + 1] = TextWidget:new{
+    name_block[#name_block + 1] = TextBoxWidget:new{
         text = (post.author_name or "?") .. (post.author_is_op and "  [OP]" or ""),
         face = name_face(),
         bold = true,
+        width = name_width,
     }
     if post.custom_title and post.custom_title ~= "" then
-        name_block[#name_block + 1] = TextWidget:new{
+        name_block[#name_block + 1] = TextBoxWidget:new{
             text = post.custom_title,
             face = small_face(),
             fgcolor = INK_META,
+            width = name_width,
         }
     end
     if post.date_raw and post.date_raw ~= "" then
-        name_block[#name_block + 1] = TextWidget:new{
+        name_block[#name_block + 1] = TextBoxWidget:new{
             text = post.date_raw .. (post.index and ("  - post #" .. post.index) or ""),
             face = small_face(),
             fgcolor = INK_META,
+            width = name_width,
         }
     end
     if post.regdate and post.regdate ~= "" then
-        name_block[#name_block + 1] = TextWidget:new{
+        name_block[#name_block + 1] = TextBoxWidget:new{
             text = "joined " .. post.regdate,
             face = small_face(),
             fgcolor = INK_META,
+            width = name_width,
         }
     end
     header[#header + 1] = VerticalGroup:new(name_block)

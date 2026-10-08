@@ -20,6 +20,7 @@ preload("ui/uimanager", {
     show = function() end,
     close = function() end,
     nextTick = function(_, callback) callback() end,
+    setDirty = function() end,
 })
 preload("datastorage", {
     getSettingsDir = function() return "/tmp/saforums-test" end,
