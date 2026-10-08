@@ -8,7 +8,7 @@ No ReaderUI, no files, no history entries, no sidecars: closing saves the
 scroll ratio through on_close and that is the whole lifecycle.
 --]]
 
-local Blitbuffer = require("blitbuffer")
+local Blitbuffer = require("ffi/blitbuffer") -- module lives at the install root on this generation
 local Device = require("device")
 local Geom = require("ui/geometry")
 local InputContainer = require("ui/widget/container/inputcontainer")

@@ -47,7 +47,7 @@ preload("libs/libkoreader-lfs", {
 local dispatcher_stub = { registerAction = function() end }
 preload("dispatcher", dispatcher_stub)
 -- The thread view widget chain (device-only modules).
-preload("blitbuffer", { COLOR_WHITE = {} })
+preload("ffi/blitbuffer", { COLOR_WHITE = {} })
 preload("ui/geometry", { new = function(_, t) return t end })
 preload("ui/widget/verticalgroup", { new = function(_, items) return items end })
 preload("ui/widget/container/framecontainer", { new = function(_, options) return options end })
