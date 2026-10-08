@@ -1,0 +1,85 @@
+--[[
+Parser for showthread.php pages.
+
+Structure contract: spec.md "HTML structure contract", thread page section.
+Post bodies are kept as raw inner HTML; cleanup and rewriting happen in the
+EPUB builder, not here.
+--]]
+
+local htmlparser = require("htmlparser")
+local htmltext = require("saforums.htmltext")
+
+local postspageparser = {}
+
+local function parse_post(table_node)
+    local post = { seen = false, author_is_op = false }
+
+    post.id = table_node.id and table_node.id:match("post(%d+)$") or nil
+    post.index = tonumber(table_node.attributes["data-idx"])
+
+    for _, row in ipairs(table_node:select("tr")) do
+        if htmltext.has_class(row, "seen1") or htmltext.has_class(row, "seen2") then
+            post.seen = true
+            break
+        end
+    end
+
+    local author = table_node:select("dt.author")[1]
+    post.author_name = htmltext.text(author)
+    post.author_is_op = htmltext.has_class(author, "op")
+
+    local profile_link = table_node:select('ul.profilelinks a[href*="userid"]')[1]
+    post.author_id = profile_link and htmltext.query_param(profile_link.attributes.href, "userid") or nil
+
+    post.body_html = htmltext.content(table_node:select("td.postbody")[1])
+
+    -- The postdate cell leads with a "#" permalink; the date follows it.
+    post.date_raw = htmltext.text(table_node:select("td.postdate")[1])
+    if post.date_raw then
+        post.date_raw = (post.date_raw:gsub("^#%s*", ""))
+    end
+
+    return post
+end
+
+--- Parse a posts page into page identity plus the post list.
+function postspageparser.parse(html)
+    local root = htmlparser.parse(html, 400000)
+    local result = { posts = {}, closed = false }
+
+    local body = root:select("body")[1]
+    if body then
+        result.thread_id = body.attributes["data-thread"]
+        result.forum_id = body.attributes["data-forum"]
+    end
+
+    local breadcrumb = root:select("div.breadcrumbs")[1]
+    if breadcrumb then
+        for _, link in ipairs(breadcrumb:select("a")) do
+            local thread_id = htmltext.query_param(link.attributes.href, "threadid")
+            if thread_id then
+                result.title = htmltext.text(link)
+                if not result.thread_id then
+                    result.thread_id = thread_id
+                end
+                break
+            end
+        end
+    end
+
+    for _, reply_link in ipairs(root:select('ul.postbuttons a[href*="newreply"]')) do
+        for _, img in ipairs(reply_link:select("img")) do
+            if (img.attributes.src or ""):find("closed", 1, true) then
+                result.closed = true
+            end
+        end
+    end
+
+    for _, table_node in ipairs(root:select("table.post")) do
+        result.posts[#result.posts + 1] = parse_post(table_node)
+    end
+
+    return result
+end
+
+return postspageparser

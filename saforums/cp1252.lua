@@ -152,4 +152,6 @@ function cp1252.encode(s)
     return table.concat(out)
 end
 
+cp1252.utf8_encode = utf8_encode
+
 return cp1252

@@ -1,0 +1,33 @@
+{
+  "user": {
+    "userid": 555,
+    "username": "FixtureUser",
+    "usertitle": "fixture account",
+    "role": "member",
+    "receivepm": 1,
+    "posts": 900
+  },
+  "forums": [
+    {
+      "id": 1,
+      "title": "General Discussion",
+      "title_short": "General",
+      "has_threads": 1,
+      "moderators": [{"userid": 1, "username": "Moderator One"}],
+      "sub_forums": [
+        {"id": 26, "title": "Fixture Front Page Discussion", "has_threads": 1, "sub_forums": []}
+      ]
+    },
+    {
+      "id": 46,
+      "title": "Fixtures &amp; Test Data",
+      "title_short": "Fixtures",
+      "has_threads": 1,
+      "sub_forums": []
+    }
+  ],
+  "stats": {
+    "num_posts": 5000000,
+    "num_users": 80000
+  }
+}
