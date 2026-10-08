@@ -110,8 +110,10 @@ function CookieJar:get(name)
 end
 
 --- The session is whatever the site says it is: a bbuserid cookie (spec).
+--- A deleted cookie arrives as an empty value, which is no session.
 function CookieJar:has_session()
-    return self:get(config.session_user_cookie) ~= nil
+    local value = self:get(config.session_user_cookie)
+    return value ~= nil and value ~= ""
 end
 
 --- Cookie header value for requests to the forums host.
