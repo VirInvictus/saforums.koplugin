@@ -21,6 +21,7 @@ describe("threadhtml", function()
                 ["103"] = "avatars/103.gif",
                 ["104"] = "avatars/104.png",
             },
+            last_page = true,
         }
     end)
 
@@ -94,6 +95,12 @@ describe("threadhtml", function()
         assert.matches("font%-family: sans%-serif", css)
         -- no line-height locks anywhere except the 3em end marker
         assert.equals(1, select(2, css:gsub("line%-height", "")))
+    end)
+
+    it("withholds the frog on non-last pages", function()
+        doc.last_page = false
+        local html = threadhtml.render(doc)
+        assert.is_nil(html:find("endmarker"))
     end)
 
     it("renders a document with no avatars at all", function()

@@ -51,10 +51,6 @@ span.imgref { color: #999; font-size: 0.85em; }
 hr { border-style: solid; color: #ccc; }
 a { color: #333; }
 div.endmarker { text-align: center; line-height: 3em; color: #999; }
-div.pagenav { text-align: center; margin: 0.8em 0; font-size: 0.85em; }
-a.pagelink { color: #333; }
-span.pagehere { color: #555; font-weight: bold; margin: 0 0.6em; }
-span.pagedead { color: #bbb; margin: 0 0.6em; }
 ]]
 
 -- The end-of-thread line (spec: Voice and humor). Lore-accurate, deadpan,
@@ -67,24 +63,6 @@ local function avatar_src(avatars, userid)
     return av
 end
 
-local function nav_html(page, total_pages)
-    if not total_pages or total_pages <= 1 then return "" end
-    local parts = { '<div class="pagenav">' }
-    if page > 1 then
-        parts[#parts + 1] = '<a class="pagelink" href="saforums:prevpage">&#171; newer</a>'
-    else
-        parts[#parts + 1] = '<span class="pagedead">&#171; newer</span>'
-    end
-    parts[#parts + 1] = '<span class="pagehere">page ' .. page .. " of " .. total_pages .. "</span>"
-    if page < total_pages then
-        parts[#parts + 1] = '<a class="pagelink" href="saforums:nextpage">older &#187;</a>'
-    else
-        parts[#parts + 1] = '<span class="pagedead">older &#187;</span>'
-    end
-    parts[#parts + 1] = "</div>"
-    return table.concat(parts, " ")
-end
-
 --- Render posts to an HTML fragment (ScrollHtmlWidget wraps it into the
 --- document itself; the webbrowser viewer feeds it exactly this shape).
 --- `doc` = { title, posts, avatars, page, total_pages } where avatars maps
@@ -93,8 +71,6 @@ end
 function threadhtml.render(doc)
     local parts = {}
     parts[#parts + 1] = '<div class="thread">'
-    local page, total_pages = doc.page or 1, doc.total_pages or 1
-    parts[#parts + 1] = nav_html(page, total_pages)
     for i, post in ipairs(doc.posts or {}) do
         local classes = { "post" }
         if i == 1 then classes[#classes + 1] = "first" end
@@ -140,12 +116,11 @@ function threadhtml.render(doc)
         parts[#parts + 1] = "</div>"
         parts[#parts + 1] = "</div>"
     end
-    if page >= total_pages then
+    if doc.last_page then
         -- The #end marker: Awful reserves a 3em line after the last post;
         -- ours carries the frog (spec: Voice and humor).
         parts[#parts + 1] = '<div class="endmarker">' .. END_MARKER .. "</div>"
     end
-    parts[#parts + 1] = nav_html(page, total_pages)
     parts[#parts + 1] = "</div>"
     return table.concat(parts, "\n")
 end

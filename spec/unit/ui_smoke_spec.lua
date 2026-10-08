@@ -80,6 +80,19 @@ preload("ui/widget/titlebar", {
         return options
     end,
 })
+preload("ui/size", {
+    padding = { large = 10, default = 5 },
+    line = { medium = 1 },
+})
+preload("ui/widget/buttontable", {
+    new = function(_, options)
+        options.getSize = function() return { h = 40 } end
+        return options
+    end,
+})
+preload("ui/widget/container/centercontainer", {
+    new = function(_, options) return options end,
+})
 preload("ui/widget/scrollhtmlwidget", {
     new = function(_, options)
         options.getCurrentRatio = function() return 0 end
