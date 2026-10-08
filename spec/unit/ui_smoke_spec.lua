@@ -43,8 +43,31 @@ preload("libs/libkoreader-lfs", {
     attributes = function() return nil end,
     mkdir = function() end,
 })
-preload("dispatcher", {
-    registerAction = function() end,
+local dispatcher_stub = { registerAction = function() end }
+preload("dispatcher", dispatcher_stub)
+-- Mirrors the real WidgetContainer class system closely enough to catch the
+-- failure class that cost us a device round-trip: PluginLoader does
+-- pcall(plugin.new, plugin, attr), so a plugin module without .new dies
+-- there, not at require time.
+preload("ui/widget/container/widgetcontainer", {
+    extend = function(_, members)
+        local cls = {}
+        for key, value in pairs(members) do
+            cls[key] = value
+        end
+        cls.__index = cls
+        function cls.new(_, attr)
+            local instance = setmetatable({}, cls)
+            for key, value in pairs(attr or {}) do
+                instance[key] = value
+            end
+            if instance.init then
+                instance:init()
+            end
+            return instance
+        end
+        return cls
+    end,
 })
 
 local ui = require("saforums.ui")
@@ -84,5 +107,24 @@ describe("device UI (smoke)", function()
         local plugin = require("main")
         assert.equals("saforums", plugin.name)
         assert.is_function(plugin.addToMainMenu)
+    end)
+
+    it("main.lua instantiates the way PluginLoader does", function()
+        local plugin = require("main")
+        local registered
+        -- registerAction is a method: (self, name, action-table).
+        dispatcher_stub.registerAction = function(_, name, action)
+            registered = action
+        end
+        local menus = {}
+        local instance = plugin.new(plugin, {
+            ui = { menu = { registerToMainMenu = function(_, entry) menus[#menus + 1] = entry end } },
+        })
+        assert.equals("saforums", instance.name)
+        assert.is_truthy(registered)
+        assert.equals("OpenSaforums", registered.event)
+        assert.equals(1, #menus)
+        assert.is_function(menus[1].addToMainMenu)
+        dispatcher_stub.registerAction = function() end
     end)
 end)
