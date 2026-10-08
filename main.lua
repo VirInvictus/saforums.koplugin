@@ -64,7 +64,10 @@ end
 function Saforums:addToMainMenu(menu_items)
     menu_items.saforums = {
         text = _("SA Forums"),
-        sorting_hint = "more_tools",
+        -- "tools" is the section App Store and Storefront live in, which is
+        -- where a plugin people open daily belongs. ("more_tools" is the
+        -- overflow section this started in.)
+        sorting_hint = "tools",
         sub_item_table = {
             {
                 text = _("Browse forums"),

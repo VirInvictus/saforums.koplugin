@@ -125,6 +125,9 @@ describe("device UI (smoke)", function()
         assert.equals("OpenSaforums", registered.event)
         assert.equals(1, #menus)
         assert.is_function(menus[1].addToMainMenu)
+        local menu_items = {}
+        menus[1]:addToMainMenu(menu_items)
+        assert.equals("tools", menu_items.saforums.sorting_hint)
         dispatcher_stub.registerAction = function() end
     end)
 end)
