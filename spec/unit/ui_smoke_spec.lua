@@ -47,7 +47,7 @@ preload("libs/libkoreader-lfs", {
 local dispatcher_stub = { registerAction = function() end }
 preload("dispatcher", dispatcher_stub)
 -- The thread view widget chain (device-only modules).
-preload("ffi/blitbuffer", { COLOR_WHITE = {} })
+preload("ffi/blitbuffer", { COLOR_WHITE = {}, gray = function(_, level) return { level = level } end })
 preload("ui/geometry", { new = function(_, t) return t end })
 preload("ui/widget/verticalgroup", { new = function(_, items) return items end })
 preload("ui/widget/container/framecontainer", { new = function(_, options) return options end })
@@ -56,6 +56,16 @@ preload("device", {
     screen = { getWidth = function() return 1264 end, getHeight = function() return 1680 end, scaleBySize = function(_, n) return n end },
     input = { group = { Back = "Back" } },
 })
+preload("ui/font", { getFace = function(_, face, size) return { name = face, size = size } end })
+preload("ui/widget/textwidget", { new = function(_, o) return o end })
+preload("ui/widget/textboxwidget", { new = function(_, o) return o end })
+preload("ui/widget/imagewidget", { new = function(_, o) return o end })
+preload("ui/widget/linewidget", { new = function(_, o) return o end })
+preload("ui/widget/horizontalgroup", { new = function(_, items) items.getSize = function() return { h = 30 } end; return items end })
+preload("ui/widget/horizontalspan", { new = function(_, o) return o end })
+preload("ui/widget/verticalspan", { new = function(_, o) return o end })
+preload("ui/widget/iconbutton", { new = function(_, o) return o end })
+preload("ui/widget/container/scrollablecontainer", { new = function(_, o) return o end })
 preload("ui/widget/container/inputcontainer", {
     extend = function(_, members)
         local cls = {}
@@ -166,18 +176,24 @@ describe("device UI (smoke)", function()
         assert.is_function(plugin.addToMainMenu)
     end)
 
-    it("thread view constructs against the widget stubs", function()
+    it("thread view constructs natively against the widget stubs", function()
         local threadview = require("saforums.threadview")
-        local closed_with
+        local closed = false
+        local paged
         local view = threadview:new{
             title = "t",
-            html_body = "<html><body>x</body></html>",
-            saved_ratio = 0.5,
-            on_close = function(ratio) closed_with = ratio end,
+            posts = { { author_name = "a", body_html = "<b>x</b>", index = 1 } },
+            avatars = {},
+            page = 2,
+            total_pages = 3,
+            on_close = function() closed = true end,
+            on_page_action = function(action) paged = action end,
         }
         assert.is_not_nil(view[1]) -- the frame was built
+        view:onPageAction("nextpage")
+        assert.equals("nextpage", paged)
         view:handleBack()
-        assert.equals(0, closed_with) -- the stub ratio
+        assert.is_true(closed)
     end)
 
     it("main.lua instantiates the way PluginLoader does", function()

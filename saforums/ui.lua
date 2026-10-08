@@ -395,8 +395,7 @@ function SaforumsUI:open_thread(thread, opts)
                 seen_poster[uid] = true
                 local cached = avatar_cache.ensure(dir .. "/avatars", self.session, uid, post.avatar_src)
                 if cached then
-                    -- Relative to the resource directory mupdf resolves images against.
-                    avatars[uid] = "avatars/" .. cached:match("([^/]+)$")
+                    avatars[uid] = cached -- absolute path; ImageWidget loads it directly
                 end
             end
         end
@@ -405,7 +404,6 @@ function SaforumsUI:open_thread(thread, opts)
         local pagination = parsed.pagination or {}
         local this_page = pagination.current_page or page
         local total_pages = pagination.total_pages or page
-        local ratio = self:get_position(thread_id, this_page)
 
         -- Continue-mode: seen tint approximates the pre-view state (the
         -- fetch itself marks the page read server-side).

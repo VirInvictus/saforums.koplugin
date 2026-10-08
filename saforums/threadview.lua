@@ -1,41 +1,173 @@
 --[[
-The in-app thread view: a full-screen scrollable HTML widget, the live
-reading surface (spec: Rendering). Modeled on the webbrowser plugin's
-markdown viewer, which is the proven full-screen ScrollHtmlWidget shape
-on this KOReader generation.
+The in-app thread view: posts composed from KOReader's own widgets - no
+HTML engine, no files, no history entries (spec: Rendering). The design
+is the grayscale Awful posts-view port: post cards, seen tint, avatar
+beside the name-and-date block, dense body text, the frog end marker.
 
-No ReaderUI, no files, no history entries, no sidecars: closing saves the
-scroll ratio through on_close and that is the whole lifecycle.
+Body text renders through TextBoxWidget, so inline bold comes from the
+PTF markers postblocks embeds; italic runs render plain (v1 limitation,
+recorded in the spec).
 --]]
 
 local Blitbuffer = require("ffi/blitbuffer") -- module lives at the install root on this generation
 local Device = require("device")
+local Font = require("ui/font")
+local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
+local HorizontalGroup = require("ui/widget/horizontalgroup")
+local HorizontalSpan = require("ui/widget/horizontalspan")
+local IconButton = require("ui/widget/iconbutton")
+local ImageWidget = require("ui/widget/imagewidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
+local LineWidget = require("ui/widget/linewidget")
+local ScrollableContainer = require("ui/widget/container/scrollablecontainer")
+local CenterContainer = require("ui/widget/container/centercontainer")
+local TextBoxWidget = require("ui/widget/textboxwidget")
+local TextWidget = require("ui/widget/textwidget")
 local TitleBar = require("ui/widget/titlebar")
-local ScrollHtmlWidget = require("ui/widget/scrollhtmlwidget")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
-local FrameContainer = require("ui/widget/container/framecontainer")
-local CenterContainer = require("ui/widget/container/centercontainer")
-local Size = require("ui/size")
+local VerticalSpan = require("ui/widget/verticalspan")
 local _ = require("gettext")
 
-local ButtonTable = require("ui/widget/buttontable")
-local threadhtml = require("saforums.threadhtml")
+local postblocks = require("saforums.postblocks")
 
 local Screen = Device.screen
 
 local ThreadView = InputContainer:extend{
     title = "",
-    html_body = nil,
-    resource_directory = nil, -- base dir for relative image paths (avatars)
-    saved_ratio = nil,
+    posts = nil,     -- parsed posts (postspageparser output)
+    avatars = nil,   -- user id -> absolute cache path
     page = 1,
     total_pages = 1,
-    on_close = nil, -- receives the final scroll ratio (0..1)
+    jump_index = nil,
+    on_close = nil,  -- called on back; the native view owns no scroll state yet
     on_page_action = nil, -- receives "prevpage" or "nextpage"
 }
+
+-- Design tokens: the grayscale translation of Awful's posts-view theme.
+local TINT_SEEN = Blitbuffer.gray(0.09)
+local INK_META = Blitbuffer.gray(0.4)
+local RULE = Blitbuffer.gray(0.2)
+
+local BODY_SIZE = Screen:scaleBySize(14)
+local SMALL_SIZE = Screen:scaleBySize(11)
+local NAME_SIZE = Screen:scaleBySize(16)
+local AVATAR_SIZE = Screen:scaleBySize(40)
+
+local function body_face()
+    return Font:getFace("cfont", BODY_SIZE)
+end
+
+local function small_face()
+    return Font:getFace("cfont", SMALL_SIZE)
+end
+
+local function name_face()
+    return Font:getFace("cfont", NAME_SIZE)
+end
+
+local function post_card(post, inner_width, is_first)
+    local card = {}
+
+    if not is_first then
+        card[#card + 1] = LineWidget:new{
+            dimen = Geom:new{ w = inner_width, h = Screen:scaleBySize(1) },
+            background = RULE,
+        }
+    end
+
+    local background = post.seen and TINT_SEEN or Blitbuffer.COLOR_WHITE
+    local content = {}
+
+    local header = {}
+    if post.avatar_file then
+        header[#header + 1] = ImageWidget:new{
+            file = post.avatar_file,
+            width = AVATAR_SIZE,
+            height = AVATAR_SIZE,
+        }
+        header[#header + 1] = HorizontalSpan:new{ width = Screen:scaleBySize(8) }
+    end
+    local name_block = {}
+    name_block[#name_block + 1] = TextWidget:new{
+        text = (post.author_name or "?") .. (post.author_is_op and "  [OP]" or ""),
+        face = name_face(),
+        bold = true,
+    }
+    if post.custom_title and post.custom_title ~= "" then
+        name_block[#name_block + 1] = TextWidget:new{
+            text = post.custom_title,
+            face = small_face(),
+            fgcolor = INK_META,
+        }
+    end
+    if post.date_raw and post.date_raw ~= "" then
+        name_block[#name_block + 1] = TextWidget:new{
+            text = post.date_raw .. (post.index and ("  - post #" .. post.index) or ""),
+            face = small_face(),
+            fgcolor = INK_META,
+        }
+    end
+    if post.regdate and post.regdate ~= "" then
+        name_block[#name_block + 1] = TextWidget:new{
+            text = "joined " .. post.regdate,
+            face = small_face(),
+            fgcolor = INK_META,
+        }
+    end
+    header[#header + 1] = VerticalGroup:new(name_block)
+    content[#content + 1] = HorizontalGroup:new(header)
+    content[#content + 1] = VerticalSpan:new{ width = Screen:scaleBySize(6) }
+
+    for _, block in ipairs(postblocks.parse(post.body_html)) do
+        if block.type == "quote" then
+            local quote_parts = {}
+            if block.header then
+                quote_parts[#quote_parts + 1] = TextWidget:new{
+                    text = block.header,
+                    face = small_face(),
+                    fgcolor = INK_META,
+                }
+            end
+            quote_parts[#quote_parts + 1] = TextBoxWidget:new{
+                text = block.text,
+                face = body_face(),
+                width = inner_width - Screen:scaleBySize(18),
+            }
+            content[#content + 1] = HorizontalGroup:new{
+                LineWidget:new{
+                    dimen = Geom:new{ w = Screen:scaleBySize(2), h = Screen:scaleBySize(30) },
+                    background = RULE,
+                },
+                VerticalSpan:new{ width = Screen:scaleBySize(8) },
+                VerticalGroup:new(quote_parts),
+            }
+        elseif block.type == "image" then
+            content[#content + 1] = TextWidget:new{
+                text = block.label,
+                face = small_face(),
+                fgcolor = INK_META,
+            }
+        else
+            content[#content + 1] = TextBoxWidget:new{
+                text = block.text,
+                face = body_face(),
+                width = inner_width,
+            }
+        end
+        content[#content + 1] = VerticalSpan:new{ width = Screen:scaleBySize(6) }
+    end
+
+    card[#card + 1] = FrameContainer:new{
+        background = background,
+        bordersize = 0,
+        margin = 0,
+        padding = Screen:scaleBySize(8),
+        VerticalGroup:new(content),
+    }
+    return VerticalGroup:new(card)
+end
 
 function ThreadView:init()
     local screen_w = Screen:getWidth()
@@ -47,8 +179,6 @@ function ThreadView:init()
     if Device:hasKeys() then
         self.key_events = {
             Close = { { Device.input.group.Back } },
-            ScrollDown = { { "RPgFwd", "LPgFwd" } },
-            ScrollUp = { { "RPgBack", "LPgBack" } },
         }
     end
 
@@ -67,92 +197,69 @@ function ThreadView:init()
         show_parent = self,
     }
 
-    -- Native page selector: the same bottom-bar pattern as the file
-    -- manager's list pagination, per Brandon's call (HTML nav removed).
-    local page_buttons = {
-        {
-            text = "\226\171\194\171", -- << newer
+    -- Native page selector: newer | page X of Y | older, file-manager style.
+    local page_label = TextWidget:new{
+        text = string.format("%s %d / %d", _("page"), self.page, self.total_pages),
+        face = Font:getFace("cfont", Screen:scaleBySize(12)),
+        fgcolor = Blitbuffer.gray(0.2),
+    }
+    local bar = HorizontalGroup:new{
+        IconButton:new{
+            icon = "chevron.left",
+            icon_width_height = Screen:scaleBySize(30),
             enabled = self.page > 1,
-            callback = function()
-                self:onPageAction("prevpage")
-            end,
+            callback = function() self:onPageAction("prevpage") end,
+            show_parent = self,
         },
-        {
-            text = self.page .. " / " .. self.total_pages,
-            enabled = false,
-        },
-        {
-            text = "\226\171\194\187 older", -- >> older
+        HorizontalSpan:new{ width = Screen:scaleBySize(24) },
+        page_label,
+        HorizontalSpan:new{ width = Screen:scaleBySize(24) },
+        IconButton:new{
+            icon = "chevron.right",
+            icon_width_height = Screen:scaleBySize(30),
             enabled = self.page < self.total_pages,
-            callback = function()
-                self:onPageAction("nextpage")
-            end,
+            callback = function() self:onPageAction("nextpage") end,
+            show_parent = self,
         },
     }
-    self.button_table = ButtonTable:new{
-        width = screen_w - 2 * Size.padding.large,
-        buttons = { page_buttons },
-        zero_sep = true,
-        show_parent = self,
-    }
-    local buttons_height = self.button_table:getSize().h
+    local bar_height = bar:getSize().h
 
-    local content_height = screen_h - titlebar:getHeight() - buttons_height
-    if content_height < 0 then
-        content_height = screen_h
+    local inner_width = screen_w - Screen:scaleBySize(16)
+    local thread_parts = {}
+    for idx, post in ipairs(self.posts or {}) do
+        thread_parts[#thread_parts + 1] = post_card(post, inner_width, idx == 1)
+        thread_parts[#thread_parts + 1] = VerticalSpan:new{ width = Screen:scaleBySize(4) }
+    end
+    if self.page >= self.total_pages then
+        thread_parts[#thread_parts + 1] = TextWidget:new{
+            text = _("The frog says: GET OUT."),
+            face = small_face(),
+            fgcolor = INK_META,
+        }
     end
 
-    self.scroll_widget = ScrollHtmlWidget:new{
-        html_body = self.html_body,
-        css = threadhtml.css,
-        html_resource_directory = self.resource_directory,
-        -- Dense by request: Awful squishes; the stock default (24) is a
-        -- large-print edition by comparison. Becomes a setting in Phase 4.
-        default_font_size = Screen:scaleBySize(14),
-        width = screen_w,
-        height = content_height,
-        dialog = self,
-        html_link_tapped_callback = function(link)
-            if link and link:find("^saforums:") then
-                if self.on_page_action then
-                    self.on_page_action(link:match("^saforums:(.+)$"))
-                end
-                return
-            end
-            -- Links are inert in the lurker view (Phase 6 revisits them).
-            UIManager:show(require("ui/widget/infomessage"):new{
-                text = _("Links are read-only in this view."),
-                timeout = 2,
-            })
-        end,
+    local scrollable = ScrollableContainer:new{
+        dimen = Geom:new{ w = screen_w, h = screen_h - titlebar:getHeight() - bar_height },
+        scroll_bar_position = "right",
+        VerticalGroup:new(thread_parts),
     }
 
     local layout = VerticalGroup:new{
         titlebar,
-        self.scroll_widget,
+        scrollable,
         CenterContainer:new{
-            dimen = Geom:new{ w = screen_w, h = buttons_height },
-            self.button_table,
+            dimen = Geom:new{ w = screen_w, h = bar_height },
+            bar,
         },
     }
 
-    local frame = FrameContainer:new{
-        padding = 0,
-        margin = 0,
+    self[1] = FrameContainer:new{
         background = Blitbuffer.COLOR_WHITE,
+        bordersize = 0,
+        margin = 0,
+        padding = 0,
         layout,
     }
-
-    self[1] = frame
-
-    if self.saved_ratio and self.saved_ratio > 0 then
-        local ratio = self.saved_ratio
-        UIManager:nextTick(function()
-            if self.scroll_widget then
-                self.scroll_widget:scrollToRatio(ratio)
-            end
-        end)
-    end
 end
 
 function ThreadView:onPageAction(action)
@@ -161,23 +268,9 @@ function ThreadView:onPageAction(action)
     end
 end
 
-function ThreadView:onScrollDown()
-    self.scroll_widget:onScrollDown()
-    return true
-end
-
-function ThreadView:onScrollUp()
-    self.scroll_widget:onScrollUp()
-    return true
-end
-
 function ThreadView:handleBack()
-    local ratio = 0
-    if self.scroll_widget and self.scroll_widget.getCurrentRatio then
-        ratio = self.scroll_widget:getCurrentRatio() or 0
-    end
     if self.on_close then
-        self.on_close(ratio)
+        self.on_close(nil)
     end
     UIManager:close(self)
 end
