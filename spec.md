@@ -134,18 +134,92 @@ it enters an EPUB.
 ## Rendering
 
 Thread content renders as EPUB inside KOReader's ReaderUI. One EPUB per thread,
-deterministic path `saforums/thread-<threadid>.epub` under the plugin's data directory,
-so KOReader's own progress, dictionary, highlights, and statistics attach to it and
-survive refetches.
+deterministic path `saforums/thread-<threadid>.epub` under the plugin's data directory
+(the filesystem is the thread index, wallabag-style; no database), so KOReader's own
+progress, dictionary, highlights, and statistics attach to it and survive refetches.
 
 - One chapter per fetched site page (40 posts per page), so chapter boundaries align
-  with SA pagination and regeneration is additive.
+  with SA pagination and regeneration is additive. Each spine file is one DocFragment,
+  which crengine breaks onto a fresh page by default.
 - Post layout: author, date, and index header per post, then the post body. Signature
   text included; avatars, images, and embeds become bracketed link placeholders in v1
-  (`[image: host.tld/foo.png]`, `[video: youtube ...]`). Spoilers render as marked
-  spans (`[spoiler: text]`), not hidden.
-- Refresh rewrites the EPUB with the same path, then reopens and restores the last-read
-  chapter before showing anything.
+  (`[image: host.tld/foo.png]`, `[video: youtube ...]`). Spoilers render as marked,
+  de-emphasized spans, not hidden.
+- Refresh rewrites the EPUB through a `.tmp` file and renames only on success (an
+  interrupted build never clobbers the readable copy). The `.sdr` sidecar is never
+  deleted: reading position and highlights survive regeneration, which is the
+  wallabag model and the opposite of the webbrowser plugin's delete-on-refetch.
+  Position recovery across length changes is Phase 4 work (chapter-anchored jump).
+- Every generated thread ends with a one-line end-of-thread marker (see Voice); it is
+  a setting, and the default is on.
+- Threads from forums with a distinct visual culture get a flavor variant at build
+  time when the setting is on: a YOSPOS thread renders its post bodies in the
+  monospace family (the one font-family declaration the typography rules permit,
+  because generic `monospace` defers to the device's monospace). This is homage by
+  typography, not by copying site art.
+
+## Typography
+
+The generated EPUB is rendered by crengine on top of the user's own tuned reading
+setup (font, margins, line spacing, style tweaks). The cascade facts that shape every
+rule: our author CSS beats crengine's default stylesheet at normal specificity; any
+user style tweak declared `!important` beats anything we ship; the render DPI setting
+rescales `px`; a specific font named in CSS would override the user's deliberately
+chosen face. Therefore:
+
+- Units are `%`, `em`, and `urem` only. Never `px` (rescales under the DPI setting),
+  never `rem` (we set no root size; `urem` is "the user's chosen size" and is the
+  unit KOReader's own tweaks use).
+- No `font-family` declarations, ever, except the generic `monospace` for the YOSPOS
+  flavor. No `line-height` anywhere: line spacing belongs to the reader's setting.
+- `body { margin: 0; }` and nothing else at the root; page margins belong to the
+  reader. Horizontal rhythm is `em` spacing on inner blocks.
+- Hierarchy is expressed through size, weight, case, and gray ink only: meta text in
+  `#555`, rules and borders in `#888` (never a rule heavier than the type it
+  separates), matching KOReader's own menu divider gray. No background colors as
+  decoration; they render as gray slabs and die to the pure-black-and-white tweak.
+- Post headers use the two-tier pattern: a small italic label line (author name) over
+  a value line (date, post index), separated from the body by an em of space and a
+  `#888` hairline (`border-bottom`).
+- Blockquotes get the e-ink treatment: `border-left` 2px `#888`, `em` padding, no
+  background. Links keep the default navy; we never restyle link color.
+- Long fields (thread titles, usernames) are budgeted at build time and truncated
+  with a real ellipsis character; post chrome must never wrap awkwardly or overflow.
+- Prose carries `lang` attributes so hyphenation patterns apply; footnotes, if ever
+  rendered inline, will use the standard `type="footnote"` / `role="doc-footnote"`
+  hooks so the default in-page-footnote tweaks pick them up with zero extra CSS.
+- Known-dead crengine features are never used: counters, `::marker`, `:link`,
+  CSS variables, `text-shadow`, logical properties, positioning, multi-value
+  `text-decoration`. `::before` content is cosmetic only (one tweak hides all
+  pseudo-elements).
+- Two type themes ship: **Art-directed** (the default; everything above) and
+  **Reader's way** (near-empty CSS, pure semantic structure; newsdownloader's
+  `/* Empty */` philosophy). Both respect every rule on this list; they differ in
+  how much chrome they draw.
+
+## Voice and humor
+
+The plugin speaks fluent forums. The register (mined from the reference client's
+practice): flat deadpan; the Forums are a third party with moods ("The Forums
+answered with HTTP 503"); jokes never target the user; partial failure is two
+clauses, the second negated ("Thread rendered, images weren't"); congratulations may
+be misused exactly once, at end-of-thread; jokes live in permanent surfaces
+(strings, empty states, the end-of-thread marker), never in pranks, and are never
+explained.
+
+- End-of-thread marker: after the last post, one line of lore. Default text invokes
+  the frog the way every thread ends, set once and never explained.
+- Empty states use site vocabulary as membership signals: an empty bookmark list is
+  "Nothing to see here." A thread with no new posts says so plainly; only the second
+  consecutive visit with nothing new earns a second line.
+- Error strings blame the right party: a Cloudflare challenge is Cloudflare's doing
+  and says so; a wrong password is between the user and the keyboard, stated
+  procedurally without snark.
+- Original jokes only, plus factual references to shared community lore. No copied
+  site content, no copied client strings: same register, our own sentences (see
+  Content and IP policy).
+- Every user-facing string is gettext-wrapped like the rest; the jokes are
+  translatable or removable like everything else.
 
 ## Content and IP policy
 
@@ -164,3 +238,8 @@ commit scraped pages, posts, avatars, or post text. The repo stays public.
   standard widget set. No third-party Lua rocks at runtime, ever.
 - Dev/test dependency: busted (installed via luarocks), never required at runtime.
 - The Windows-1252 decoder is a small in-repo mapping table; no iconv dependency.
+- `_meta.lua` carries `name` and `version` as plain quoted strings (never gettext
+  wrappers): the on-device marketplaces regex-extract both for install detection
+  and update comparison. `version` stays in lockstep with the `VERSION` file and
+  the release tag; a distribution release carries a `.zip` asset, which the
+  Storefront catalog requires.

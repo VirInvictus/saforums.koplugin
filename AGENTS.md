@@ -53,10 +53,14 @@ plugin root: `main.lua` and `_meta.lua` install as `koreader/plugins/saforums.ko
   koreader-base; see its PROVENANCE.md, do not modify).
 - Deploy for a device pass: copy the repo to
   `/mnt/Kindle/koreader/plugins/saforums.koplugin/` (vfat over sshfs:
-  `rsync -rc --delete --no-perms --no-owner --no-group --modify-window=2`),
-  restart KOReader, read `koreader/crash.log` first when anything misbehaves.
-  The mount only exists while KOReader is running; do not write
-  `settings.reader.lua` or plugin settings while KOReader is live.
+  `rsync -rc --delete --no-perms --no-owner --no-group --modify-window=2
+  --exclude=.git --exclude=.repos`), restart KOReader, read `koreader/crash.log`
+  first when anything misbehaves. The mount only exists while KOReader is running;
+  do not write `settings.reader.lua` or plugin settings while KOReader is live.
+- `.repos/` is the reference shelf: community plugins mined for the typography,
+  design, humor, and marketplace research (plus Awful.app at
+  `~/.gitrepos/Awful.app` for voice). Read-only, git-ignored, never deployed,
+  never modified. Conclusions already live in `spec.md`; do not re-mine them.
 
 ## Version
 

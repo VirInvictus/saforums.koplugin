@@ -1,6 +1,12 @@
+-- name and version are plain strings on purpose: the on-device plugin
+-- marketplaces regex-extract them from this file for install detection and
+-- update comparison (spec: Platform and dependencies). They must match the
+-- VERSION file and the release tag.
 local _ = require("gettext")
 
 return {
+    name = "saforums",
+    version = "0.1.0",
     fullname = _("SA Forums"),
     description = _([[Read the Something Awful Forums as EPUBs. Lurker-first: forum index, thread lists with unread counts, and thread pages rendered as books.]]),
 }
