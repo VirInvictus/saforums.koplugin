@@ -209,8 +209,12 @@ function epubbuilder.build(path, doc)
             chapter_xhtml(doc.title, page.posts))
     end
 
-    if not epub:close() then
-        logger.err("saforums: failed to close", tmp_path)
+    -- KOReader's Writer:close returns nothing; errors surface through the
+    -- err field set along the way (the first device pass threw away two
+    -- good EPUBs by branching on the return value).
+    epub:close()
+    if epub.err then
+        logger.err("saforums: archiver error on", tmp_path, ":", epub.err)
         return false
     end
 

@@ -46,6 +46,37 @@ describe("epubbuilder", function()
         assert.is_true(epub.closed)
     end)
 
+    it("renames the .tmp onto the final path when the archiver is clean", function()
+        local renamed
+        local real_rename = os.rename
+        os.rename = function(from, to)
+            renamed = { from, to }
+            return true
+        end
+        local ok, epub = build()
+        os.rename = real_rename
+        assert.is_true(ok)
+        assert.is_nil(epub.err)
+        assert.equals(epub.opened_path, renamed[1])
+        assert.equals("/tmp/saforums-test/thread-4231003.epub", renamed[2])
+    end)
+
+    it("fails the build when the archiver reports an error", function()
+        local Writer = Archiver.Writer
+        local real_close = Writer.close
+        Writer.close = function(self)
+            self.closed = true
+            self.err = "boom"
+        end
+        local ok = epubbuilder.build("/tmp/saforums-test/thread-4231003.epub", {
+            thread_id = "4231003",
+            title = "t",
+            pages = { page },
+        })
+        Writer.close = real_close
+        assert.is_false(ok)
+    end)
+
     it("stores the mimetype first, uncompressed", function()
         local _, epub = build()
         assert.equals("application/epub+zip", epub.entries["mimetype"])
