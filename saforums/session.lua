@@ -13,6 +13,7 @@ pass a recording fake. Nothing else in this module touches I/O.
 --]]
 
 local ltn12 = require("ltn12")
+local logger = require("logger")
 
 local config = require("saforums.config")
 local cookiejar = require("saforums.cookiejar")
@@ -27,28 +28,33 @@ Session.__index = Session
 
 local BOUNDARY = "saforums-form-boundary-7f3a9c"
 
+--- Fill in the pieces ssl.https needs. The body source exists only for
+--- requests that have a body: giving a GET an empty-string source made
+--- LuaSocket's protected wrapper fail the request silently (nil, err),
+--- which is the bug the first device pass caught.
+local function build_https_request(request, sink)
+    request.sink = ltn12.sink.table(sink)
+    request.redirect = false
+    if request.body and #request.body > 0 then
+        request.source = ltn12.source.string(request.body)
+        request.headers = request.headers or {}
+        request.headers["content-length"] = tostring(#request.body)
+    end
+    return request
+end
+
 local function default_transport(request)
     local socketutil = require("socketutil")
     local https = require("ssl.https")
-    request.source = ltn12.source.string(request.body)
     local sink = {}
-    request.sink = ltn12.sink.table(sink)
-    request.redirect = false
-    request.block_timeout = config.request_block_timeout
-    request.total_timeout = config.request_total_timeout
-    local ok, code, headers
-    if request.body and #request.body > 0 then
-        request.headers = request.headers or {}
-        request.headers["content-length"] = tostring(#request.body)
-        ok, code, headers = https.request(request)
-    else
-        request.body = nil
-        ok, code, headers = https.request(request)
-    end
+    build_https_request(request, sink)
+    socketutil:set_timeout(config.request_block_timeout, config.request_total_timeout)
+    local ok, code_or_err, headers = https.request(request)
+    socketutil:reset_timeout()
     if not ok then
-        return nil, headers
+        return nil, tostring(code_or_err)
     end
-    return code, headers, table.concat(sink)
+    return code_or_err, headers, table.concat(sink)
 end
 
 --- Build a multipart/form-data body with 1252-encoded field values.
@@ -130,6 +136,10 @@ function Session:request(method, url, fields)
             headers_map["content-type"] = "multipart/form-data; boundary=" .. BOUNDARY
         end
 
+        -- Log the wire conversation, never the headers: URLs and outcomes
+        -- only, because cookies are credentials (spec: Session).
+        logger.info("saforums:", method, url)
+
         local code, headers, response = self.transport({
             method = method,
             url = url,
@@ -138,13 +148,15 @@ function Session:request(method, url, fields)
         })
 
         if code == nil then
-            return { kind = "transport_error", error = headers }
+            logger.warn("saforums: transport error on", url, ":", tostring(headers))
+            return { kind = "transport_error", error = tostring(headers) }
         end
 
         self.jar:store(headers)
 
         if code == 301 or code == 302 or code == 303 or code == 307 then
             local location = headers and (headers["location"] or (type(headers.location) == "table" and headers.location[1]))
+            logger.info("saforums: HTTP", code, "redirect to", location)
             url = restore_perpage(resolve_url(url, location))
             if code == 303 or code == 302 then
                 method = "GET"
@@ -166,6 +178,7 @@ function Session:request(method, url, fields)
             else
                 result.kind = "ok"
             end
+            logger.info("saforums: HTTP", code, "->", result.kind)
             return result
         end
     end
@@ -222,5 +235,7 @@ end
 session.multipart_body = multipart_body
 session.resolve_url = resolve_url
 session.restore_perpage = restore_perpage
+session.build_https_request = build_https_request
+session.default_transport = default_transport
 
 return session

@@ -75,3 +75,32 @@ function FakeWriter:close()
 end
 
 preload("ffi/archiver", { Writer = FakeWriter })
+
+-- Transport fakes: default_transport requires these lazily, so specs can
+-- exercise the real request-building path without a network.
+local socketutil_stub = {
+    calls = {},
+    set_timeout = function(self, block, total)
+        self.calls[#self.calls + 1] = { "set_timeout", block, total }
+    end,
+    reset_timeout = function(self)
+        self.calls[#self.calls + 1] = { "reset_timeout" }
+    end,
+}
+preload("socketutil", socketutil_stub)
+
+local https_stub
+https_stub = {
+    requests = {},
+    -- Default canned response; specs can override respond().
+    respond = function()
+        return 1, 200, {}
+    end,
+    -- saforums calls https.request(req) with a dot, matching LuaSec's
+    -- request-table form, so the stub records positionally.
+    request = function(req)
+        https_stub.requests[#https_stub.requests + 1] = req
+        return https_stub.respond()
+    end,
+}
+preload("ssl.https", https_stub)
