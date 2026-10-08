@@ -93,6 +93,19 @@ describe("postspageparser author sidebar", function()
     end)
 end)
 
+describe("postspageparser date cleaning", function()
+    it("strips the permalink and any separator junk before the date", function()
+        local page = [[<html><body data-thread="1" data-forum="2">
+        <table class="post" id="post9" data-idx="1">
+        <tr><td class="userinfo"><dl class="userinfo"><dt class="author">A</dt></dl></td>
+        <td class="postbody">x</td></tr>
+        <tr><td class="postdate"><a href="#1">#1</a> � Oct 5, 2026 12:30</td></tr>
+        </table></body></html>]]
+        local result = postspageparser.parse(page)
+        assert.equals("Oct 5, 2026 12:30", result.posts[1].date_raw)
+    end)
+end)
+
 describe("postspageparser pagination", function()
     it("extracts page identity from div.pages", function()
         local result = postspageparser.parse(fixture("postspage.html"))

@@ -30,16 +30,15 @@ div.post { display: block; border-top: 1px solid #ccc; border-bottom: 1px solid 
 div.post.first { margin-top: 0; }
 div.post.seen { background-color: #e8e8e8; }
 header { padding-top: 0.75em; padding-bottom: 0.7em; }
-img.avatar { display: inline-block; vertical-align: middle; width: 2.5em;
-             margin-right: 0.6em; }
-div.nameanddate { display: inline-block; vertical-align: middle; }
+img.avatar { float: left; width: 2.5em; margin-right: 0.6em; }
+div.nameanddate { }
 div.username { font-size: 1.1em; font-weight: bold; margin: 0 0 2px; }
 span.opbadge { font-size: 0.65em; border: 1px solid #555; color: #555;
                padding: 0 0.25em; margin-left: 0.4em; }
 span.usertitle { display: block; font-size: 0.8em; font-style: italic; color: #555; }
 div.postdate { font-size: 0.8em; color: #999; }
 div.regdate { font-size: 0.8em; color: #999; }
-div.postbody { text-align: left; }
+div.postbody { text-align: left; clear: both; }
 div.postbody img { max-width: 100%; }
 p.editedby, div.editedby { font-size: 0.8em; color: #999; text-indent: 0; }
 blockquote { border-left: 2px solid #ccc; margin: 0.5em 0 0.5em 1em;

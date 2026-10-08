@@ -51,7 +51,10 @@ local function parse_post(table_node)
     -- it.
     post.date_raw = htmltext.text(table_node:select("td.postdate")[1])
     if post.date_raw then
-        post.date_raw = (post.date_raw:gsub("^#%d*%s*", ""))
+        -- "#5161" permalink prefix, then any separator junk the cell
+        -- carries (undefined cp1252 bytes arrive as U+FFFD); dates start
+        -- with a letter or digit, so strip everything before the first one.
+        post.date_raw = (post.date_raw:gsub("^#%d*", ""):gsub("^[^%w]+", ""))
     end
 
     return post
