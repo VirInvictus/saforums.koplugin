@@ -63,3 +63,28 @@ describe("postblocks", function()
         assert.matches("%[spoiler%] shh %[/spoiler%]", blocks[1].text)
     end)
 end)
+
+describe("postblocks hostile input", function()
+    it("degrades an unclosed blockquote to a quote block instead of truncating", function()
+        local blocks = postblocks.parse("<blockquote><h4>x posted:</h4>never closed and more words")
+        assert.equals(1, #blocks)
+        assert.equals("quote", blocks[1].type)
+        assert.matches("never closed and more words", blocks[1].text)
+    end)
+
+    it("keeps rendering after an unmatched blockquote mid-body", function()
+        local blocks = postblocks.parse("before<blockquote>unclosed<blockquote>nested tail")
+        assert.is_true(#blocks >= 1)
+        local last = blocks[#blocks]
+        assert.matches("nested tail", last.text)
+    end)
+
+    it("falls back to plain text when a body yields no blocks", function()
+        local blocks = postblocks.parse("<div><span></span></div>")
+        assert.equals(0, #blocks) -- all-empty content stays empty
+
+        local nonempty = postblocks.parse("<div>words survive</div>")
+        assert.equals(1, #nonempty)
+        assert.matches("words survive", nonempty[1].text)
+    end)
+end)

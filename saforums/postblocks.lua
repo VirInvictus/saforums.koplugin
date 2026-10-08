@@ -129,20 +129,42 @@ function postblocks.parse(body_html)
 
         emit_paragraph(body_html:sub(position, next_block - 1))
 
+        -- The site's HTML sometimes leaves these unclosed or mismatched; a
+        -- missing close tag degrades to "the rest is this block's text"
+        -- rather than silently truncating the page.
         if next_kind == "quote" then
             local inner_start = quote_start + #"<blockquote>"
             local close_start, close_end = find_block_end(body_html, inner_start, "<blockquote>", "</blockquote>")
-            if not close_start then break end
+            if not close_start then
+                blocks[#blocks + 1] = {
+                    type = "quote",
+                    text = inline_from_html(body_html:sub(inner_start)),
+                }
+                break
+            end
             parse_quote_block(body_html:sub(inner_start, close_start - 1), blocks)
             position = close_end + 1
         else
             local close_start, close_end = body_html:find("</span>", image_start, true)
-            if not close_start then break end
+            if not close_start then
+                emit_paragraph(body_html:sub(image_start))
+                break
+            end
             local label = inline_from_html(body_html:sub(image_start + #'<span class="imgref">', close_start - 1))
             if label ~= "" then
                 blocks[#blocks + 1] = { type = "image", label = label }
             end
             position = close_end + 1
+        end
+    end
+
+    -- Last resort: a body that produced nothing but was not empty still
+    -- shows its text (the ghost-page bug: fetches marked read, render
+    -- showed nothing).
+    if #blocks == 0 then
+        local text = inline_from_html(body_html)
+        if text ~= "" then
+            blocks[#blocks + 1] = { type = "para", text = PTF_HEADER .. text }
         end
     end
 

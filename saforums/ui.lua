@@ -421,6 +421,9 @@ function SaforumsUI:open_thread(thread, opts)
             total_pages = total_pages,
         })
 
+        logger.info(string.format("saforums: rendering page %s/%s with %d posts",
+            tostring(this_page), tostring(total_pages), #parsed.posts))
+
         local ThreadView = require("saforums.threadview")
         local view = ThreadView:new{
             title = (parsed.title or thread.title) .. " (" .. this_page .. "/" .. total_pages .. ")",
