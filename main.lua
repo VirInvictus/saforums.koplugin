@@ -79,6 +79,10 @@ function Saforums:onOpenSaforums()
     ui.new():show_forum_index()
 end
 
+function Saforums:onOpenBookmarks()
+    ui.new():show_bookmarks(1)
+end
+
 function Saforums:onLogin()
     ui.new():ensure_session(function()
         UIManager:show(InfoMessage:new{
@@ -107,6 +111,10 @@ function Saforums:addToMainMenu(menu_items)
             {
                 text = _("Browse forums"),
                 callback = function() self:onOpenSaforums() end,
+            },
+            {
+                text = _("Bookmarks"),
+                callback = function() self:onOpenBookmarks() end,
             },
             {
                 text = _("Log in…"),

@@ -94,6 +94,17 @@ function postspageparser.parse(html)
         result.posts[#result.posts + 1] = parse_post(table_node)
     end
 
+    local pages = root:select("div.pages")[1]
+    if pages then
+        local attributes = pages.attributes
+        result.pagination = {
+            current_page = tonumber(attributes["data-current-page"]),
+            total_pages = tonumber(attributes["data-total-pages"]),
+            base_url = attributes["data-base-url"],
+            per_page = tonumber(attributes["data-per-page"]),
+        }
+    end
+
     return result
 end
 

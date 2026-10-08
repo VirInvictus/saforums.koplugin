@@ -29,6 +29,7 @@ local ThreadView = InputContainer:extend{
     resource_directory = nil, -- base dir for relative image paths (avatars)
     saved_ratio = nil,
     on_close = nil, -- receives the final scroll ratio (0..1)
+    on_page_action = nil, -- receives "prevpage" or "nextpage"
 }
 
 function ThreadView:init()
@@ -72,6 +73,12 @@ function ThreadView:init()
         height = screen_h - titlebar:getHeight(),
         dialog = self,
         html_link_tapped_callback = function(link)
+            if link and link:find("^saforums:") then
+                if self.on_page_action then
+                    self.on_page_action(link:match("^saforums:(.+)$"))
+                end
+                return
+            end
             -- Links are inert in the lurker view (Phase 6 revisits them).
             UIManager:show(require("ui/widget/infomessage"):new{
                 text = _("Links are read-only in this view."),

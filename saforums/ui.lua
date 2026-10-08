@@ -254,16 +254,29 @@ function SaforumsUI:show_forum_index()
 end
 
 function SaforumsUI:show_thread_list(forum_id, page_number, title)
+    local url = config.base_url .. "/forumdisplay.php?forumid=" .. forum_id
+        .. "&perpage=" .. config.perpage .. "&pagenumber=" .. page_number
+    self:render_thread_list(url, page_number, title, "forum")
+end
+
+--- The bookmark shelf: same rows as a forum list, but tapping a thread is
+--- the explicit continue-reading action (spec: Read state), and holding
+--- one offers the lurker-management actions.
+function SaforumsUI:show_bookmarks(page_number)
+    local url = config.base_url .. "/bookmarkthreads.php?action=view"
+        .. "&perpage=" .. config.perpage .. "&pagenumber=" .. page_number
+    self:render_thread_list(url, page_number, _("Bookmarks"), "bookmarks")
+end
+
+function SaforumsUI:render_thread_list(list_url, page_number, title, source)
     self:when_online(function()
-        local url = config.base_url .. "/forumdisplay.php?forumid=" .. forum_id
-            .. "&perpage=" .. config.perpage .. "&pagenumber=" .. page_number
-        local result = self.session:get(url)
+        local result = self.session:get(list_url)
         if self:show_result_error(result) then return end
         local parsed = threadlistparser.parse(result.body or "")
         local items = {}
         if page_number > 1 then
             items[#items + 1] = {
-                text = _("… previous page"),
+                text = _("… newer page"),
                 goto_page = page_number - 1,
             }
         end
@@ -281,7 +294,7 @@ function SaforumsUI:show_thread_list(forum_id, page_number, title)
         local total = parsed.pagination and parsed.pagination.total_pages or 1
         if page_number < total then
             items[#items + 1] = {
-                text = _("… next page"),
+                text = _("… older page"),
                 goto_page = page_number + 1,
             }
         end
@@ -289,28 +302,80 @@ function SaforumsUI:show_thread_list(forum_id, page_number, title)
         local list_title = (title or _("Threads")) .. "  (" .. page_number .. "/" .. total .. ")"
         self:show_menu(list_title, items, function(item)
             if item.goto_page then
-                self:show_thread_list(forum_id, item.goto_page, title)
+                if source == "bookmarks" then
+                    self:show_bookmarks(item.goto_page)
+                else
+                    self:show_thread_list(forum_id, item.goto_page, title)
+                end
             elseif item.thread then
-                self:open_thread(item.thread, 1)
+                if source == "bookmarks" then
+                    -- Bookmarked threads open at the first unseen post.
+                    self:open_thread(item.thread, { mode = "continue" })
+                else
+                    self:open_thread(item.thread, { page = 1, mode = "browse" })
+                end
+            end
+        end, function(item)
+            if item.thread and source == "bookmarks" then
+                return self:thread_hold_menu(item.thread)
             end
         end)
     end)
 end
 
---- Fetch one thread page without touching server-side read state (noseen=1),
---- and render it in the in-app thread view. No files, no ReaderUI, no
---- history entries (spec: Rendering).
-function SaforumsUI:open_thread(thread, page_number)
+--- Hold actions on a bookmarked thread: mark unread (the server-side
+--- resetseen POST, an explicit lurker action).
+function SaforumsUI:thread_hold_menu(thread)
+    return ConfirmBox:new{
+        text = _("Mark this thread unread?"),
+        ok_text = _("Mark unread"),
+        cancel_text = _("Keep"),
+        ok_callback = function()
+            self:when_online(function()
+                local result = self.session:request("POST",
+                    config.base_url .. "/showthread.php",
+                    { threadid = thread.id, action = "resetseen", json = "1" })
+                if result.kind == "ok" then
+                    self:message(_("Thread marked unread."), 2)
+                else
+                    self:show_result_error(result)
+                end
+            end)
+        end,
+    }
+end
+
+function SaforumsUI:open_thread(thread, opts)
+    opts = opts or {}
+    local page = opts.page or 1
+    local mode = opts.mode or "browse"
     self:message(_("Fetching thread…"))
     self:when_online(function()
         local url = config.base_url .. "/showthread.php?threadid=" .. thread.id
-            .. "&perpage=" .. config.perpage .. "&pagenumber=" .. page_number .. "&noseen=1"
+            .. "&perpage=" .. config.perpage
+        if mode == "continue" then
+            url = url .. "&goto=newpost"
+        else
+            url = url .. "&pagenumber=" .. page .. "&noseen=1"
+        end
         local result = self.session:get(url)
         if self:show_result_error(result) then return end
         local parsed = postspageparser.parse(result.body or "")
         if #parsed.posts == 0 then
             self:message(_("No posts found on that page."), 3)
             return
+        end
+
+        -- Where to land: an explicit jump target wins; else the first post
+        -- the page still reports unseen.
+        local jump_index = result.jump_index
+        if not jump_index then
+            for _idx, post in ipairs(parsed.posts) do
+                if not post.seen then
+                    jump_index = post.index
+                    break
+                end
+            end
         end
 
         -- Avatars: fetched once per poster and cached on device; failures
@@ -337,33 +402,67 @@ function SaforumsUI:open_thread(thread, page_number)
         end
 
         local thread_id = parsed.thread_id or thread.id
+        local pagination = parsed.pagination or {}
+        local this_page = pagination.current_page or page
+        local total_pages = pagination.total_pages or page
+        local ratio = self:get_position(thread_id, this_page)
+
+        -- Continue-mode: seen tint approximates the pre-view state (the
+        -- fetch itself marks the page read server-side).
+        if mode == "continue" and jump_index then
+            for _idx, post in ipairs(parsed.posts) do
+                post.seen = post.index < jump_index
+            end
+        end
+
+        local html = threadhtml.render({
+            title = parsed.title or thread.title,
+            posts = parsed.posts,
+            avatars = avatars,
+            page = this_page,
+            total_pages = total_pages,
+        })
+
         local ThreadView = require("saforums.threadview")
         local view = ThreadView:new{
-            title = parsed.title or thread.title,
-            html_body = threadhtml.render({
-                title = parsed.title or thread.title,
-                posts = parsed.posts,
-                avatars = avatars,
-            }),
+            title = (parsed.title or thread.title) .. " (" .. this_page .. "/" .. total_pages .. ")",
+            html_body = html,
             resource_directory = dir,
-            saved_ratio = self:get_position(thread_id),
-            on_close = function(ratio)
-                self:save_position(thread_id, ratio)
+            saved_ratio = mode == "browse" and ratio or self:jump_ratio(jump_index, parsed.posts),
+            on_close = function(r)
+                self:save_position(thread_id, this_page, r)
+            end,
+            on_page_action = function(action)
+                local delta = action == "nextpage" and 1 or -1
+                local target = this_page + delta
+                if target >= 1 and target <= total_pages then
+                    self:open_thread(thread, { page = target, mode = "browse" })
+                end
             end,
         }
         UIManager:show(view)
     end)
 end
 
---- Per-thread scroll positions for the in-app view (settings-backed).
-function SaforumsUI:get_position(thread_id)
-    local positions = self.settings:readSetting("saforums_positions") or {}
-    return positions[thread_id]
+--- Rough landing ratio for a jump target: posts are roughly uniform, so
+--- the first unseen post sits at (index-1)/count of the scroll height.
+function SaforumsUI:jump_ratio(jump_index, posts)
+    if not jump_index or #posts == 0 then return 0 end
+    local ratio = (jump_index - 1) / #posts
+    if ratio < 0 then ratio = 0 end
+    if ratio > 0.95 then ratio = 0.95 end
+    return ratio
 end
 
-function SaforumsUI:save_position(thread_id, ratio)
+--- Per-thread, per-page scroll positions for the in-app view.
+function SaforumsUI:get_position(thread_id, page)
     local positions = self.settings:readSetting("saforums_positions") or {}
-    positions[thread_id] = ratio
+    return positions[thread_id .. ":" .. page]
+end
+
+function SaforumsUI:save_position(thread_id, page, ratio)
+    local positions = self.settings:readSetting("saforums_positions") or {}
+    positions[thread_id .. ":" .. page] = ratio
     self.settings:saveSetting("saforums_positions", positions)
     self.settings:flush()
 end
@@ -371,7 +470,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Menu plumbing
 
-function SaforumsUI:show_menu(title, items, on_select)
+function SaforumsUI:show_menu(title, items, on_select, on_hold)
     local menu = Menu:new{
         title = title,
         item_table = items,
@@ -382,6 +481,14 @@ function SaforumsUI:show_menu(title, items, on_select)
         onMenuSelect = function(menu_self, item)
             UIManager:close(menu_self)
             on_select(item)
+        end,
+        onMenuHold = function(menu_self, item)
+            if on_hold then
+                local hold_menu = on_hold(item)
+                if hold_menu then
+                    UIManager:show(hold_menu)
+                end
+            end
         end,
     }
     UIManager:show(menu)

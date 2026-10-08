@@ -193,11 +193,20 @@ re-render.
   the bold author, custom title and gray meta line, left-aligned text. Avatars
   embed as data URIs; if the device renders them as broken boxes, a one-line
   switch drops them until the image path is proven.
-- Scroll position per thread persists in plugin settings and is restored on the
-  next open. The view never marks anything read; `noseen=1` discipline is
-  unchanged.
-- Page keys and swipe scroll the view; back closes it. Links are inert in the
-  lurker view.
+- Pages: multi-page threads navigate in the view via pseudo-links
+  (`saforums:nextpage`/`saforums:prevpage` rendered as a page nav above and
+  below the posts); page changes fetch with `noseen=1`. The 3em frog line
+  shows only on the last page.
+- Scroll position persists per thread AND per site page, and is restored on
+  the next open. Browse fetches never mark anything read; `noseen=1`
+  discipline is unchanged.
+- Page keys and swipe scroll the view; back closes it. Site links are inert
+  in the lurker view; only the plugin's own pseudo-links act.
+- Bookmarked threads (the bookmark shelf lists rows with unread counts) open
+  with `goto=newpost` WITHOUT `noseen` — the explicit continue-reading
+  action: the view lands on the first unseen post, seen posts render tinted,
+  and the server marks the page read as the side effect the user asked for.
+  Holding a bookmark offers mark-unread (`action=resetseen`).
 - The EPUB builder remains in the tree, fully tested but unwired: a future
   "export thread as EPUB" action can revive it without new work.
 

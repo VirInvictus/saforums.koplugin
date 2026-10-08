@@ -129,6 +129,10 @@ function Session:request(method, url, fields, opts)
     opts = opts or {}
     local body = fields and multipart_body(fields) or nil
     local was_logged_in = self.jar:has_session()
+    -- The goto=newpost redirect carries its jump target as a #pti<index>
+    -- fragment; keep it apart from the fetch URL (fragments never go to the
+    -- wire) and report it with the final response.
+    local jump_index = nil
 
     for _ = 1, 5 do
         local headers_map = {
@@ -160,7 +164,13 @@ function Session:request(method, url, fields, opts)
         if code == 301 or code == 302 or code == 303 or code == 307 then
             local location = headers and (headers["location"] or (type(headers.location) == "table" and headers.location[1]))
             logger.info("saforums: HTTP", code, "redirect to", location)
-            url = restore_perpage(resolve_url(url, location))
+            url = resolve_url(url, location)
+            local fragment = url:match("(#pti%d+)$")
+            if fragment then
+                jump_index = tonumber(fragment:match("%d+"))
+                url = url:sub(1, #url - #fragment)
+            end
+            url = restore_perpage(url)
             if code == 303 or code == 302 then
                 method = "GET"
                 body = nil
@@ -169,6 +179,7 @@ function Session:request(method, url, fields, opts)
             local result = {
                 code = code,
                 url = url,
+                jump_index = jump_index,
                 body = opts.raw and response or cp1252.decode(response),
             }
             if looks_like_challenge(code, headers, response) then

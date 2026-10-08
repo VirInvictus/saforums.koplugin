@@ -40,12 +40,18 @@ thread, read it on e-ink with page turns; no request in the whole flow lacked
 
 ## Phase 2: read state and bookmarks (the lurker loop)
 
-- [ ] "Continue reading" action: `goto=newpost` fetch (marks read as a side effect),
-      lands on the first unseen post.
-- [ ] Mark unread (`action=resetseen`) per thread from the thread list.
-- [ ] Bookmarks: list view, add/remove with star colors per spec.
+- [x] "Continue reading" action (2026-10-08): `goto=newpost` fetch (marks read
+      as a side effect), landing on the first unseen post via the redirect's
+      `#pti` jump target, seen tint approximating the pre-view state.
+- [x] Mark unread (`action=resetseen`) per thread from the bookmark shelf hold
+      menu (2026-10-08).
+- [x] Bookmarks: list view with unread counts and pagination (2026-10-08);
+      tapping a bookmark is the continue action. Still open: add-bookmark from
+      the thread view and star-color display.
 - [ ] Explicit mark-seen-to-index control.
 - [ ] Refresh throttling per spec (15 min per forum list; manual refresh bypass).
+      Deferred until thread lists are cached on device: a throttle with nothing
+      to reuse is theater.
 - [ ] Voice pass on every string the loop touches (spec: Voice and humor): empty
       bookmark list, no-new-posts state, session expiry. Deadpan, membership
       vocabulary, no snark at the user.
@@ -108,9 +114,9 @@ font or enables a style tweak.
 
 ## Phase 4: reading ergonomics and refresh
 
-- [ ] Multi-page threads: fetch next/previous page from inside the reader flow,
-      chapters appended to the same EPUB (Trapper-wrapped, tap-to-cancel fetches
-      with the throttled progress-message pattern).
+- [x] Multi-page threads: in-view page navigation (pseudo-link page nav above
+      and below the posts, `noseen=1` fetches, frog line only on the last page;
+      2026-10-08). Still open: Trapper-wrapped cancellable fetches.
 - [ ] Refresh-in-place: refetch the open thread, regenerate through `.tmp` +
       rename, restore the last-read chapter (chapter-anchored position recovery;
       the `.sdr` sidecar is never deleted).

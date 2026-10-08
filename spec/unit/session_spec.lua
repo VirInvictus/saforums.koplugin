@@ -210,3 +210,28 @@ describe("raw fetches", function()
         assert.equals("caf\xC3\xA9", result.body)
     end)
 end)
+
+describe("goto=newpost jump targets", function()
+    it("keeps the #pti fragment as jump_index and off the wire", function()
+        local transport = fake_transport({
+            { code = 302, headers = { location = "/showthread.php?threadid=1&pagenumber=3#pti47" }, body = "" },
+            { code = 200, headers = {}, body = "the page" },
+        })
+        local s = session.new(transport.request)
+        local result = s:get("https://f.invalid/showthread.php?threadid=1&goto=newpost")
+
+        assert.equals("ok", result.kind)
+        assert.equals(47, result.jump_index)
+        assert.equals(2, #transport.requests)
+        assert.is_nil(transport.requests[2].url:find("#", 1, true)) -- fragment never sent
+        assert.matches("perpage=40", transport.requests[2].url)
+    end)
+
+    it("leaves jump_index nil on plain fetches", function()
+        local transport = fake_transport({
+            { code = 200, headers = {}, body = "" },
+        })
+        local s = session.new(transport.request)
+        assert.is_nil(s:get("https://f.invalid/t").jump_index)
+    end)
+end)
