@@ -61,11 +61,22 @@ The first slice landed live on 2026-10-08 after Brandon saw the unstyled output 
 pulled this phase forward: bordered post cards, two-tier post heads, left-aligned
 body text, and avatars (pulled from "v1 never" to first-class by the same verdict).
 
+**Architecture note, same day, second verdict:** the EPUB-in-ReaderUI route lost to
+reality twice over (crengine's CSS ceiling made the cards look wrong on device, and
+every thread polluted the bookshelf history). Threads now render in the in-app
+`ThreadView` (full-screen ScrollHtmlWidget); the EPUB builder is dormant but kept.
+Spec (Rendering) is the contract for the new surface.
+
 - [x] Post anatomy (2026-10-08): bordered post cards, avatar + bold author +
       italic custom title + gray meta line (date, post #), left-aligned body with
       paragraph spacing, styled edited-by lines, blockquote left rules.
 - [x] Avatars: parsed from the userinfo sidebar, cached per user id on device,
-      embedded into the book with manifest entries; failures are cosmetic.
+      embedded beside the author (data URIs in the in-app view; the EPUB builder
+      embeds them as zip assets); failures are cosmetic.
+- [x] In-app ThreadView: full-screen scrollable HTML view with page keys, swipe,
+      back-to-close, per-thread scroll-position memory, zero reader side effects
+      (no history, no sidecars). Replaces EPUB-in-ReaderUI as the reading surface
+      (2026-10-08, Brandon's call after the on-device verdict).
 - [ ] The thread-EPUB stylesheet to spec (spec: Typography): em/urem units only,
       no font-family, no line-height, `body { margin: 0 }`, #555 meta ink, #888
       hairlines, two-tier post headers, blockquote left rules, no background

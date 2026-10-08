@@ -22,7 +22,7 @@ local logger = require("logger")
 local _ = require("gettext")
 
 local config = require("saforums.config")
-local epubbuilder = require("saforums.epubbuilder")
+local threadhtml = require("saforums.threadhtml")
 local indexparser = require("saforums.indexparser")
 local json = require("saforums.json")
 local postspageparser = require("saforums.postspageparser")
@@ -298,7 +298,8 @@ function SaforumsUI:show_thread_list(forum_id, page_number, title)
 end
 
 --- Fetch one thread page without touching server-side read state (noseen=1),
---- build the EPUB, and open it in the reader.
+--- and render it in the in-app thread view. No files, no ReaderUI, no
+--- history entries (spec: Rendering).
 function SaforumsUI:open_thread(thread, page_number)
     self:message(_("Fetching thread…"))
     self:when_online(function()
@@ -312,47 +313,65 @@ function SaforumsUI:open_thread(thread, page_number)
             return
         end
 
-        -- getFullDataDir, not getDataDir: on this install the latter is the
-        -- relative "./", and the archiver only noticed the missing folder at
-        -- close time, which read as a mystery build failure.
+        -- Avatars: fetched once per poster and cached on device; failures
+        -- are cosmetic (the post renders without one).
         local dir = (DataStorage:getFullDataDir() or DataStorage:getDataDir()) .. "/saforums"
         if not lfs.attributes(dir, "mode") then
             local created, mkdir_err = lfs.mkdir(dir)
             if not created then
-                self:message(_("Could not create the plugin data folder: ")
-                    .. tostring(mkdir_err), 6)
-                logger.err("saforums: mkdir failed for", dir, ":", tostring(mkdir_err))
-                return
+                logger.warn("saforums: mkdir failed for", dir, ":", tostring(mkdir_err))
             end
         end
         local avatar_cache = require("saforums.avatars")
-        local avatar_dir = dir .. "/avatars"
         local avatars, seen_poster = {}, {}
         for _idx, post in ipairs(parsed.posts) do
             local uid = post.author_id
             if uid and post.avatar_src and not seen_poster[uid] then
                 seen_poster[uid] = true
-                local cached = avatar_cache.ensure(avatar_dir, self.session, uid, post.avatar_src)
+                local cached = avatar_cache.ensure(dir .. "/avatars", self.session, uid, post.avatar_src)
                 if cached then
-                    avatars[uid] = cached
+                    local handle = io.open(cached, "rb")
+                    if handle then
+                        local data = handle:read("*a")
+                        handle:close()
+                        if data and #data > 0 then
+                            local mime = avatar_cache.mime_for(post.avatar_src)
+                            avatars[uid] = { data = data, mime = mime }
+                        end
+                    end
                 end
             end
         end
 
-        local path = dir .. "/thread-" .. (parsed.thread_id or thread.id) .. ".epub"
-        local ok = epubbuilder.build(path, {
-            thread_id = parsed.thread_id or thread.id,
+        local thread_id = parsed.thread_id or thread.id
+        local ThreadView = require("saforums.threadview")
+        local view = ThreadView:new{
             title = parsed.title or thread.title,
-            pages = { { number = page_number, posts = parsed.posts } },
-            avatars = avatars,
-        })
-        if not ok then
-            self:message(_("EPUB build failed; see crash.log"), 4)
-            logger.err("saforums: epub build failed for thread", thread.id)
-            return
-        end
-        ReaderUI:showReader(path)
+            html_body = threadhtml.render({
+                title = parsed.title or thread.title,
+                posts = parsed.posts,
+                avatars = avatars,
+            }),
+            saved_ratio = self:get_position(thread_id),
+            on_close = function(ratio)
+                self:save_position(thread_id, ratio)
+            end,
+        }
+        UIManager:show(view)
     end)
+end
+
+--- Per-thread scroll positions for the in-app view (settings-backed).
+function SaforumsUI:get_position(thread_id)
+    local positions = self.settings:readSetting("saforums_positions") or {}
+    return positions[thread_id]
+end
+
+function SaforumsUI:save_position(thread_id, ratio)
+    local positions = self.settings:readSetting("saforums_positions") or {}
+    positions[thread_id] = ratio
+    self.settings:saveSetting("saforums_positions", positions)
+    self.settings:flush()
 end
 
 -- ---------------------------------------------------------------------------

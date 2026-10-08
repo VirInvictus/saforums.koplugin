@@ -19,6 +19,7 @@ preload("ui/widget/menu", widget)
 preload("ui/uimanager", {
     show = function() end,
     close = function() end,
+    nextTick = function(_, callback) callback() end,
 })
 preload("datastorage", {
     getSettingsDir = function() return "/tmp/saforums-test" end,
@@ -45,6 +46,49 @@ preload("libs/libkoreader-lfs", {
 })
 local dispatcher_stub = { registerAction = function() end }
 preload("dispatcher", dispatcher_stub)
+-- The thread view widget chain (device-only modules).
+preload("blitbuffer", { COLOR_WHITE = {} })
+preload("ui/geometry", { new = function(_, t) return t end })
+preload("ui/widget/verticalgroup", { new = function(_, items) return items end })
+preload("ui/widget/container/framecontainer", { new = function(_, options) return options end })
+preload("device", {
+    hasKeys = function() return false end,
+    screen = { getWidth = function() return 1264 end, getHeight = function() return 1680 end },
+    input = { group = { Back = "Back" } },
+})
+preload("ui/widget/container/inputcontainer", {
+    extend = function(_, members)
+        local cls = {}
+        for key, value in pairs(members) do cls[key] = value end
+        cls.__index = cls
+        function cls.new(_, attr)
+            local instance = setmetatable({}, cls)
+            for key, value in pairs(attr or {}) do
+                instance[key] = value
+            end
+            if instance.init then
+                instance:init()
+            end
+            return instance
+        end
+        return cls
+    end,
+})
+preload("ui/widget/titlebar", {
+    new = function(_, options)
+        options.getHeight = function() return 40 end
+        return options
+    end,
+})
+preload("ui/widget/scrollhtmlwidget", {
+    new = function(_, options)
+        options.getCurrentRatio = function() return 0 end
+        options.onScrollDown = function() end
+        options.onScrollUp = function() end
+        options.scrollToRatio = function() end
+        return options
+    end,
+})
 -- Mirrors the real WidgetContainer class system closely enough to catch the
 -- failure class that cost us a device round-trip: PluginLoader does
 -- pcall(plugin.new, plugin, attr), so a plugin module without .new dies
@@ -107,6 +151,20 @@ describe("device UI (smoke)", function()
         local plugin = require("main")
         assert.equals("saforums", plugin.name)
         assert.is_function(plugin.addToMainMenu)
+    end)
+
+    it("thread view constructs against the widget stubs", function()
+        local threadview = require("saforums.threadview")
+        local closed_with
+        local view = threadview:new{
+            title = "t",
+            html_body = "<html><body>x</body></html>",
+            saved_ratio = 0.5,
+            on_close = function(ratio) closed_with = ratio end,
+        }
+        assert.is_not_nil(view[1]) -- the frame was built
+        view:handleBack()
+        assert.equals(0, closed_with) -- the stub ratio
     end)
 
     it("main.lua instantiates the way PluginLoader does", function()
