@@ -43,6 +43,7 @@ FakeWriter.instances = {}
 function FakeWriter:new()
     local instance = setmetatable({
         entries = {},
+        entry_compression = {},
         compression = "deflate",
         opened_path = nil,
         opened_kind = nil,
@@ -64,6 +65,7 @@ end
 
 function FakeWriter:addFileFromMemory(name, content)
     self.entries[name] = content
+    self.entry_compression[name] = self.compression
     return true
 end
 
