@@ -67,11 +67,14 @@ The first slice landed live on 2026-10-08 after Brandon saw the unstyled output 
 pulled this phase forward: bordered post cards, two-tier post heads, left-aligned
 body text, and avatars (pulled from "v1 never" to first-class by the same verdict).
 
-**Architecture note, same day, second verdict:** the EPUB-in-ReaderUI route lost to
-reality twice over (crengine's CSS ceiling made the cards look wrong on device, and
-every thread polluted the bookshelf history). Threads now render in the in-app
-`ThreadView` (full-screen ScrollHtmlWidget); the EPUB builder is dormant but kept.
-Spec (Rendering) is the contract for the new surface.
+**Architecture notes, same day, verdicts two and three:** the EPUB-in-ReaderUI
+route lost to reality twice over (crengine's CSS ceiling made the cards look wrong
+on device, and every thread polluted the bookshelf history). Threads then moved to
+a ScrollHtmlWidget view - which lost the third round when mupdf's CSS gaps (no
+floats, wrapped inline-blocks, ignored font-family) capped the design again.
+Threads now render as **native KOReader widgets** (`postblocks` block model +
+`threadview` composition); both the EPUB builder and the HTML renderer are
+dormant-but-tested. Spec (Rendering) is the contract for the native surface.
 
 - [x] Post anatomy (2026-10-08): bordered post cards, avatar + bold author +
       italic custom title + gray meta line (date, post #), left-aligned body with
