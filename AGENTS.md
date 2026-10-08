@@ -33,6 +33,10 @@ plugin root: `main.lua` and `_meta.lua` install as `koreader/plugins/saforums.ko
 
 - Lua 5.1 compatible (KOReader runs LuaJIT). No `goto`, no integer division `//`, no
   5.2+ stdlib assumptions.
+- **Never use `_` as a loop variable in files where gettext is in scope**
+  (`main.lua`, `saforums/ui.lua`): gettext's function is named `_`, the loop index
+  shadows it, and the next `_("literal")` inside the loop calls a number. Name the
+  placeholder (`for _idx, ...`). A source-hygiene spec enforces this.
 - Target API floor: KOReader v2026.03 (Brandon's Kindle Oasis 3). When reaching for a
   KOReader API, verify it exists in a checkout of that vintage or newer; the local
   reference checkout for API truth is the koreader upstream source.
