@@ -43,6 +43,17 @@ function ui.new()
     return self
 end
 
+--- Thread-book shelf LRU (spec: Rendering; policy set 2026-10-08): oldest
+--- books beyond the cap are deleted at plugin start, sidecars included.
+function ui.enforce_retention()
+    local retention = require("saforums.retention")
+    local settings = LuaSettings:open(
+        ("%s/%s"):format(DataStorage:getSettingsDir(), "saforums_settings.lua"))
+    local cap = tonumber(settings:readSetting("saforums_retention_cap")) or 100
+    local dir = (DataStorage:getFullDataDir() or DataStorage:getDataDir()) .. "/saforums"
+    retention.enforce(dir, cap)
+end
+
 function SaforumsUI:save_session()
     self.settings:saveSetting("saforums", self.session:to_table())
     self.settings:flush()
@@ -314,11 +325,26 @@ function SaforumsUI:open_thread(thread, page_number)
                 return
             end
         end
+        local avatar_cache = require("saforums.avatars")
+        local avatar_dir = dir .. "/avatars"
+        local avatars, seen_poster = {}, {}
+        for _idx, post in ipairs(parsed.posts) do
+            local uid = post.author_id
+            if uid and post.avatar_src and not seen_poster[uid] then
+                seen_poster[uid] = true
+                local cached = avatar_cache.ensure(avatar_dir, self.session, uid, post.avatar_src)
+                if cached then
+                    avatars[uid] = cached
+                end
+            end
+        end
+
         local path = dir .. "/thread-" .. (parsed.thread_id or thread.id) .. ".epub"
         local ok = epubbuilder.build(path, {
             thread_id = parsed.thread_id or thread.id,
             title = parsed.title or thread.title,
             pages = { { number = page_number, posts = parsed.posts } },
+            avatars = avatars,
         })
         if not ok then
             self:message(_("EPUB build failed; see crash.log"), 4)

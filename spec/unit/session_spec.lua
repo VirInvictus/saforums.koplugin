@@ -190,3 +190,23 @@ describe("session", function()
         end)
     end)
 end)
+
+describe("raw fetches", function()
+    it("leaves binary bodies undecoded when raw is set", function()
+        local transport = fake_transport({
+            { code = 200, headers = {}, body = "\137PNG\r\n\x1a\n" },
+        })
+        local s = session.new(transport.request)
+        local result = s:get("https://f.invalid/avatar.gif", { raw = true })
+        assert.equals("\137PNG\r\n\x1a\n", result.body)
+    end)
+
+    it("still decodes text bodies by default", function()
+        local transport = fake_transport({
+            { code = 200, headers = {}, body = "caf\xE9" },
+        })
+        local s = session.new(transport.request)
+        local result = s:get("https://f.invalid/page")
+        assert.equals("caf\xC3\xA9", result.body)
+    end)
+end)

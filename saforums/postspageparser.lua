@@ -28,15 +28,30 @@ local function parse_post(table_node)
     post.author_name = htmltext.text(author)
     post.author_is_op = htmltext.has_class(author, "op")
 
+    -- Custom title: raw HTML (avatars commonly live inside it) plus clean
+    -- text for display.
+    local title_cell = table_node:select("dd.title")[1]
+    post.custom_title_html = htmltext.content(title_cell)
+    post.custom_title = htmltext.text(title_cell)
+
+    -- Avatar: the first image in the userinfo sidebar, wherever the poster
+    -- kept it (dedicated slot, custom title, or a wrapping link).
+    local avatar_img = table_node:select("td.userinfo img")[1]
+    post.avatar_src = avatar_img and avatar_img.attributes.src or nil
+
+    local regdate = table_node:select("dd.registered")[1]
+    post.regdate = htmltext.text(regdate)
+
     local profile_link = table_node:select('ul.profilelinks a[href*="userid"]')[1]
     post.author_id = profile_link and htmltext.query_param(profile_link.attributes.href, "userid") or nil
 
     post.body_html = htmltext.content(table_node:select("td.postbody")[1])
 
-    -- The postdate cell leads with a "#" permalink; the date follows it.
+    -- The postdate cell leads with a "#<index>" permalink; the date follows
+    -- it.
     post.date_raw = htmltext.text(table_node:select("td.postdate")[1])
     if post.date_raw then
-        post.date_raw = (post.date_raw:gsub("^#%s*", ""))
+        post.date_raw = (post.date_raw:gsub("^#%d*%s*", ""))
     end
 
     return post

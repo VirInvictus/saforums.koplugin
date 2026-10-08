@@ -25,13 +25,18 @@ Exit: sideload to the Oasis, launch from the tools menu, see the Phase 0 stub me
 - [x] HTTP session layer: requests over the bundled socket stack, cookie jar, persistent
       session state, Windows-1252 request encoding and response decoding. (Transport
       code written against socketutil/ssl.https; live-network pass pending below.)
-- [ ] Live verification of login, forum index, thread list, thread reading, and the
-      Cloudflare error path on the Oasis. Code for all of it is in place; nothing
-      gets ticked until it has talked to the real site once.
+- [x] Live verification on the Oasis (2026-10-08 device pass): login, forum index,
+      thread list, and thread reading all confirmed against the real site; every
+      thread fetch logged with `noseen=1`; `busted` green throughout. Three real
+      bugs found and fixed on-device (plugin class shape, a GET body-source bug,
+      an archiver close-semantics misread), each now pinned by a test. The
+      Cloudflare error path is unit-tested but was never exercised live (no
+      challenge occurred; it is episodic by nature) and gets re-checked whenever
+      one does.
 
-Exit: on the Oasis, from a cold start: log in, open a forum, open a thread, read it on
-e-ink with page turns; `busted` is green; no request in the whole flow lacked `noseen=1`
-except the login itself.
+Exit: met on the Oasis, 2026-10-08: from a cold start: log in, open a forum, open a
+thread, read it on e-ink with page turns; no request in the whole flow lacked
+`noseen=1` except the login itself.
 
 ## Phase 2: read state and bookmarks (the lurker loop)
 
@@ -52,11 +57,21 @@ read state.
 ## Phase 3: the typography pass (art-directed, deferential)
 
 The default type theme ships per spec: designed structure, inherited typography.
+The first slice landed live on 2026-10-08 after Brandon saw the unstyled output and
+pulled this phase forward: bordered post cards, two-tier post heads, left-aligned
+body text, and avatars (pulled from "v1 never" to first-class by the same verdict).
 
+- [x] Post anatomy (2026-10-08): bordered post cards, avatar + bold author +
+      italic custom title + gray meta line (date, post #), left-aligned body with
+      paragraph spacing, styled edited-by lines, blockquote left rules.
+- [x] Avatars: parsed from the userinfo sidebar, cached per user id on device,
+      embedded into the book with manifest entries; failures are cosmetic.
 - [ ] The thread-EPUB stylesheet to spec (spec: Typography): em/urem units only,
       no font-family, no line-height, `body { margin: 0 }`, #555 meta ink, #888
       hairlines, two-tier post headers, blockquote left rules, no background
-      decoration, none of the known-dead crengine features.
+      decoration, none of the known-dead crengine features. (First version of
+      everything above is in and on the device; this box closes on Brandon's
+      on-device verdict.)
 - [ ] Two themes behind one setting: Art-directed (default) and Reader's way
       (near-empty CSS). Theme switch requires no rebuild wizardry: the next
       regeneration picks it up.
@@ -91,8 +106,11 @@ font or enables a style tweak.
 - [ ] Stale-while-revalidate list rendering: paint the cached list instantly,
       refresh behind it, and deep-compare results so unchanged data triggers no
       e-ink redraw.
+- [x] Retention: LRU cap on the thread-book shelf (default 100, enforced at
+      plugin start, sidecar + history + collection cleanup), policy and cap
+      recorded in spec (2026-10-08).
 - [ ] Settings surface: default forum, perpage, spoiler rendering style, type
-      theme, end-of-thread marker, forum flavors.
+      theme, end-of-thread marker, forum flavors, retention cap.
 - [ ] Cookie-expiry warning (7-day threshold, from the cookie's own expiry).
 
 Exit: a long thread (hundreds of posts, many pages) survives refresh, page fetch, and

@@ -120,10 +120,13 @@ function session.new(transport)
 end
 
 --- Single request with cookie/UA headers, manual redirects, jar updates,
---- and session-loss detection. Returns a result table:
+--- and session-loss detection. opts.raw keeps the body undecoded bytes
+--- (binary fetches like avatars); the default decodes site text as
+--- Windows-1252. Returns a result table:
 ---   { kind = "ok"|"cloudflare"|"logged_out"|"http_error"|"transport_error",
----     code, url (final), body (UTF-8 decoded) }
-function Session:request(method, url, fields)
+---     code, url (final), body }
+function Session:request(method, url, fields, opts)
+    opts = opts or {}
     local body = fields and multipart_body(fields) or nil
     local was_logged_in = self.jar:has_session()
 
@@ -166,7 +169,7 @@ function Session:request(method, url, fields)
             local result = {
                 code = code,
                 url = url,
-                body = cp1252.decode(response),
+                body = opts.raw and response or cp1252.decode(response),
             }
             if looks_like_challenge(code, headers, response) then
                 result.kind = "cloudflare"
@@ -186,8 +189,8 @@ function Session:request(method, url, fields)
     return { kind = "http_error", code = nil, url = url, error = "too many redirects" }
 end
 
-function Session:get(url)
-    return self:request("GET", url, nil)
+function Session:get(url, opts)
+    return self:request("GET", url, nil, opts)
 end
 
 --- POST form fields and parse a JSON reply. Returns the parsed document or

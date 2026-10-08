@@ -31,13 +31,30 @@ local CONTAINER = [[<?xml version="1.0"?>
 </container>]]
 
 local STYLESHEET = [[
-body { font-family: serif; }
-div.post { margin: 0 0 1.2em 0; }
-div.posthead { font-size: 0.8em; color: #666; border-bottom: 1px solid #999; margin-bottom: 0.4em; }
+/* saforums thread book. Art-directed, deferential: em/% units only, no
+   font-family, no line-height, gray inks, hierarchy by size/weight/case.
+   Rules the user can always beat with a style tweak (spec: Typography). */
+body { margin: 0; }
+
+p { text-indent: 0; margin: 0 0 0.5em 0; text-align: left; }
+div.postbody { text-align: left; }
+
+div.post { border-top: 1px solid #888; margin-top: 1.4em; padding-top: 0.9em; }
+div.post:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+
+div.posthead { margin-bottom: 0.7em; }
+img.avatar { width: 3em; vertical-align: middle; margin-right: 0.7em; }
 span.postauthor { font-weight: bold; }
-span.spoiler { color: #777; font-style: italic; }
-span.imgref { color: #666; font-size: 0.85em; }
-blockquote { margin: 0.5em 0 0.5em 1.5em; color: #444; }
+span.usertitle { font-style: italic; }
+div.postmeta { font-size: 0.8em; color: #555; margin-top: 0.2em; }
+
+p.editedby, div.editedby { font-size: 0.8em; color: #555; text-indent: 0; }
+
+blockquote { border-left: 2px solid #888; margin: 0.6em 0 0.6em 1em;
+             padding-left: 0.8em; color: #333; }
+span.spoiler { color: #555; font-style: italic; }
+span.imgref { color: #555; font-size: 0.85em; }
+hr { border-style: solid; color: #888; }
 ]]
 
 -- Entities the source HTML uses that strict XML will not accept by name.
@@ -105,7 +122,18 @@ local function sanitize_body(raw_html)
     return html
 end
 
-local function chapter_xhtml(title, posts)
+-- Avatar zip paths are derived from the user id: images/a<id>.<ext>.
+local AVATAR_MIME = {
+    gif = "image/gif", png = "image/png", jpg = "image/jpeg",
+    jpeg = "image/jpeg", webp = "image/webp",
+}
+
+local function avatar_zip_name(userid, local_path)
+    local ext = (local_path:match("%.(%w+)$") or "png"):lower()
+    return "images/a" .. userid .. "." .. ext, AVATAR_MIME[ext] or "image/png"
+end
+
+local function chapter_xhtml(title, posts, avatars)
     local parts = {}
     parts[#parts + 1] = [[<?xml version="1.0" encoding="utf-8"?>]]
     parts[#parts + 1] = [[<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">]]
@@ -113,10 +141,29 @@ local function chapter_xhtml(title, posts)
         .. xml_escape(title) .. '</title></head><body>'
     for _, post in ipairs(posts) do
         parts[#parts + 1] = '<div class="post">'
-        parts[#parts + 1] = '<div class="posthead"><span class="postauthor">'
+        parts[#parts + 1] = '<div class="posthead">'
+        local avatar = post.author_id and avatars and avatars[post.author_id]
+        if avatar then
+            local zip_path = avatar_zip_name(post.author_id, avatar)
+            parts[#parts + 1] = '<img class="avatar" src="' .. zip_path .. '" alt=""/>'
+        end
+        parts[#parts + 1] = '<span class="postauthor">'
             .. xml_escape(post.author_name or "?") .. '</span>'
-            .. (post.date_raw and " &#183; " .. xml_escape(post.date_raw) or "")
-            .. '</div>'
+        if post.custom_title and post.custom_title ~= "" then
+            parts[#parts + 1] = ' <span class="usertitle">'
+                .. xml_escape(post.custom_title) .. '</span>'
+        end
+        local meta = {}
+        if post.date_raw and post.date_raw ~= "" then
+            meta[#meta + 1] = xml_escape(post.date_raw)
+        end
+        if post.index then
+            meta[#meta + 1] = "post #" .. post.index
+        end
+        if #meta > 0 then
+            parts[#parts + 1] = '<div class="postmeta">' .. table.concat(meta, " &#183; ") .. '</div>'
+        end
+        parts[#parts + 1] = '</div>'
         parts[#parts + 1] = sanitize_body(post.body_html)
         parts[#parts + 1] = '</div>'
     end
@@ -124,12 +171,17 @@ local function chapter_xhtml(title, posts)
     return table.concat(parts, "\n")
 end
 
-local function content_opf(doc, page_count)
+local function content_opf(doc, page_count, avatar_zip_names)
     local manifest, spine = {}, {}
     for i = 1, page_count do
         manifest[#manifest + 1] = string.format(
             '    <item id="page%d" href="page%d.xhtml" media-type="application/xhtml+xml"/>', i, i)
         spine[#spine + 1] = string.format('    <itemref idref="page%d"/>', i)
+    end
+    for _, av in ipairs(avatar_zip_names) do
+        manifest[#manifest + 1] = string.format(
+            '    <item id="%s" href="%s" media-type="%s"/>',
+            "av" .. av.userid, av.zip_path, av.mime)
     end
     return table.concat({
         "<?xml version='1.0' encoding='utf-8'?>",
@@ -178,19 +230,39 @@ local function toc_ncx(doc, page_count)
     }, "\n")
 end
 
---- Build the EPUB at `path`. `doc` = { thread_id, title, pages } where each
---- page is { number, posts }. Writes to a .tmp file and renames only on
---- success, so an interrupted build never clobbers the readable file.
+--- Build the EPUB at `path`. `doc` = { thread_id, title, pages, avatars }
+--- where each page is { number, posts } and avatars maps user id to a
+--- local cache file path (they are fetched by the caller before build).
+--- Writes to a .tmp file and renames only on success, so an interrupted
+--- build never clobbers the readable file.
 function epubbuilder.build(path, doc)
     local pages = doc.pages or {}
     if #pages == 0 then
         return false
     end
 
+    -- Avatar files: read once, embedded into OEBPS/images/, manifest items
+    -- generated per unique user id.
+    local avatar_zip_names, avatar_contents = {}, {}
+    for userid, local_path in pairs(doc.avatars or {}) do
+        local file = io.open(local_path, "rb")
+        if file then
+            local content = file:read("*a")
+            file:close()
+            if content and #content > 0 then
+                local zip_path, mime = avatar_zip_name(userid, local_path)
+                avatar_zip_names[#avatar_zip_names + 1] = {
+                    userid = userid, zip_path = zip_path, mime = mime,
+                }
+                avatar_contents[zip_path] = content
+            end
+        end
+    end
+
     local epub = Archiver.Writer:new{}
     local tmp_path = path .. ".tmp"
     if not epub:open(tmp_path, "epub") then
-        logger.err("saforums: failed to open", tmp_path)
+        logger.err("saforums: failed to open", tmp_path, ":", epub.err)
         return false
     end
 
@@ -200,13 +272,16 @@ function epubbuilder.build(path, doc)
 
     epub:addFileFromMemory("META-INF/container.xml", CONTAINER)
     epub:addFileFromMemory("OEBPS/stylesheet.css", STYLESHEET)
-    epub:addFileFromMemory("OEBPS/content.opf", content_opf(doc, #pages))
+    epub:addFileFromMemory("OEBPS/content.opf", content_opf(doc, #pages, avatar_zip_names))
     epub:addFileFromMemory("OEBPS/toc.ncx", toc_ncx(doc, #pages))
 
     for _, page in ipairs(pages) do
         epub:addFileFromMemory(
             string.format("OEBPS/page%d.xhtml", page.number),
-            chapter_xhtml(doc.title, page.posts))
+            chapter_xhtml(doc.title, page.posts, doc.avatars))
+    end
+    for _, av in ipairs(avatar_zip_names) do
+        epub:addFileFromMemory("OEBPS/" .. av.zip_path, avatar_contents[av.zip_path])
     end
 
     -- KOReader's Writer:close returns nothing; errors surface through the

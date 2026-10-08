@@ -135,11 +135,46 @@ describe("epubbuilder", function()
         end)
     end)
 
-    it("escapes metadata and headers into the chapters", function()
+    it("renders the two-tier post head with meta line", function()
         local _, epub = build()
         local chapter = epub.entries["OEBPS/page1.xhtml"]
         assert.matches('<span class="postauthor">Poster Three</span>', chapter)
-        assert.matches("&#183; Oct 5, 2026 12:30", chapter)
+        assert.matches('<div class="postmeta">Oct 5, 2026 12:30 &#183; post #1</div>', chapter)
+        assert.matches('class="usertitle"', chapter) -- custom title rides along
         assert.is_truthy(chapter:find('xmlns="http://www.w3.org/1999/xhtml"'))
+    end)
+
+    it("styles posts as bordered cards and leaves the first unbordered", function()
+        local _, epub = build()
+        local css = epub.entries["OEBPS/stylesheet.css"]
+        assert.matches("div%.post { border%-top: 1px solid #888", css)
+        assert.matches("div%.post:first%-child { border%-top: none", css)
+        assert.matches("text%-indent: 0", css)
+        assert.is_nil(css:find("font%-family:"))
+        assert.is_nil(css:find("line%-height:"))
+    end)
+
+    it("embeds cached avatars next to the author with manifest items", function()
+        local avatar_file = os.tmpname() .. ".gif"
+        local handle = io.open(avatar_file, "wb")
+        handle:write("GIF89a-fixture-bytes")
+        handle:close()
+        local doc = {
+            thread_id = "4231003",
+            title = "t",
+            pages = { page },
+            avatars = { ["103"] = avatar_file },
+        }
+        local ok = epubbuilder.build("/tmp/saforums-test/avatars.epub", doc)
+        assert.is_true(ok)
+        local epub = Archiver.Writer.instances[#Archiver.Writer.instances]
+        assert.equals("GIF89a-fixture-bytes", epub.entries["OEBPS/images/a103.gif"])
+        local opf = epub.entries["OEBPS/content.opf"]
+        assert.matches('id="av103" href="images/a103%.gif" media%-type="image/gif"', opf)
+        local chapter = epub.entries["OEBPS/page1.xhtml"]
+        assert.matches('<img class="avatar" src="images/a103%.gif"', chapter)
+        -- Poster Five has no cached avatar: no img for 105.
+        assert.is_nil(chapter:find("a105%."))
+        os.remove(avatar_file)
     end)
 end)

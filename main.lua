@@ -72,6 +72,7 @@ end
 function Saforums:init()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
+    pcall(ui.enforce_retention)
 end
 
 function Saforums:onOpenSaforums()
