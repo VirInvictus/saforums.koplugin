@@ -13,19 +13,14 @@ Exit: sideload to the Oasis, launch from the tools menu, see the Phase 0 stub me
 
 ## Phase 1: vertical slice (login to reading one thread)
 
-- [ ] Test rig: busted + synthetic fixtures in `spec/fixtures/` (fictional text, real
-      structure); parser and cookie tests green locally before any device work.
-- [ ] HTTP session layer: requests over the bundled socket stack, cookie jar, persistent
-      session state, Windows-1252 request encoding and response decoding.
-- [ ] Login: `account.php?json=1`, JSON parse, session-validity check (`bbuserid`),
-      expired-session handling, settings UI (username/password + cookie import fields).
-- [ ] Forum index: parse `index.php?json=1`, navigate the forum tree in a menu.
-- [ ] Thread list: parse `forumdisplay.php` rows per the spec selector table, paginated
-      menu, unread counts shown.
-- [ ] Thread reading: fetch a page with `noseen=1`, parse posts, build the per-thread
-      EPUB, open in ReaderUI, page through with the hardware buttons.
-- [ ] Cloudflare challenge surfaced as a clear error with the cookie-import fallback
-      documented in-app.
+- [x] Test rig: busted + synthetic fixtures in `spec/fixtures/` (fictional
+      text, real structure); parser and cookie tests green locally before any device work.
+- [x] HTTP session layer: requests over the bundled socket stack, cookie jar, persistent
+      session state, Windows-1252 request encoding and response decoding. (Transport
+      code written against socketutil/ssl.https; live-network pass pending below.)
+- [ ] Live verification of login, forum index, thread list, thread reading, and the
+      Cloudflare error path on the Oasis. Code for all of it is in place; nothing
+      gets ticked until it has talked to the real site once.
 
 Exit: on the Oasis, from a cold start: log in, open a forum, open a thread, read it on
 e-ink with page turns; `busted` is green; no request in the whole flow lacked `noseen=1`

@@ -41,15 +41,22 @@ plugin root: `main.lua` and `_meta.lua` install as `koreader/plugins/saforums.ko
 
 ## Build, test, run
 
-- There is no build step. Lint mentally, keep files loadable by LuaJIT.
-- Tests: `busted` (install once with `luarocks --local install busted`), run as
-  `busted spec/` from the repo root. Every parser has synthetic fixtures under
-  `spec/fixtures/` and a busted spec; new parsing behavior lands fixture-first.
-- Deploy for a device pass: copy the repo to `/mnt/Kindle/koreader/plugins/saforums.koplugin/`
-  (vfat over sshfs: `rsync --no-perms --no-owner --no-group --modify-window=2`), restart
-  KOReader, read `koreader/crash.log` first when anything misbehaves. The mount only
-  exists while KOReader is running; do not write `settings.reader.lua` or plugin
-  settings while KOReader is live.
+- There is no build step. Keep every file loadable by LuaJIT (the device
+  runtime); tests run under the system Lua 5.4, so stay in the 5.1 subset.
+- Tests: busted, installed once as a dev-only luarock
+  (`luarocks --local install busted`), run from the repo root:
+  `eval "$(luarocks path --local)"; ~/.luarocks/bin/busted spec/unit`.
+  Every parser has synthetic fixtures under `spec/fixtures/`; new parsing
+  behavior lands fixture-first. `spec/stubs.lua` provides the KOReader module
+  stubs and the fake archiver; `spec/vendor/htmlparser/` is the test-only
+  pin of the parser KOReader bundles at runtime (same commit as
+  koreader-base; see its PROVENANCE.md, do not modify).
+- Deploy for a device pass: copy the repo to
+  `/mnt/Kindle/koreader/plugins/saforums.koplugin/` (vfat over sshfs:
+  `rsync -rc --delete --no-perms --no-owner --no-group --modify-window=2`),
+  restart KOReader, read `koreader/crash.log` first when anything misbehaves.
+  The mount only exists while KOReader is running; do not write
+  `settings.reader.lua` or plugin settings while KOReader is live.
 
 ## Version
 
