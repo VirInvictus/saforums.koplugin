@@ -301,9 +301,18 @@ function SaforumsUI:open_thread(thread, page_number)
             return
         end
 
-        local dir = DataStorage:getDataDir() .. "/saforums"
+        -- getFullDataDir, not getDataDir: on this install the latter is the
+        -- relative "./", and the archiver only noticed the missing folder at
+        -- close time, which read as a mystery build failure.
+        local dir = (DataStorage:getFullDataDir() or DataStorage:getDataDir()) .. "/saforums"
         if not lfs.attributes(dir, "mode") then
-            lfs.mkdir(dir)
+            local created, mkdir_err = lfs.mkdir(dir)
+            if not created then
+                self:message(_("Could not create the plugin data folder: ")
+                    .. tostring(mkdir_err), 6)
+                logger.err("saforums: mkdir failed for", dir, ":", tostring(mkdir_err))
+                return
+            end
         end
         local path = dir .. "/thread-" .. (parsed.thread_id or thread.id) .. ".epub"
         local ok = epubbuilder.build(path, {
