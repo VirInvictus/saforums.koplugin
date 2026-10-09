@@ -25,6 +25,14 @@ for _, level in ipairs({ "dbg", "info", "warn", "err" }) do
 end
 preload("logger", logger)
 
+preload("ui/uimanager", {
+    show = function() end,
+    close = function() end,
+    nextTick = function(_, fn) fn() end,
+    setDirty = function() end,
+    scheduleIn = function() end,
+})
+
 preload("ffi/util", {
     template = function(str, ...)
         local args = { ... }
