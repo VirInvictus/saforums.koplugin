@@ -22,7 +22,6 @@ local logger = require("logger")
 local _ = require("gettext")
 
 local config = require("saforums.config")
-local threadhtml = require("saforums.threadhtml")
 local indexparser = require("saforums.indexparser")
 local json = require("saforums.json")
 local postspageparser = require("saforums.postspageparser")
@@ -256,7 +255,7 @@ end
 function SaforumsUI:show_thread_list(forum_id, page_number, title)
     local url = config.base_url .. "/forumdisplay.php?forumid=" .. forum_id
         .. "&perpage=" .. config.perpage .. "&pagenumber=" .. page_number
-    self:render_thread_list(url, page_number, title, "forum")
+    self:render_thread_list(url, page_number, title, "forum", forum_id)
 end
 
 --- The bookmark shelf: same rows as a forum list, but tapping a thread is
@@ -268,7 +267,7 @@ function SaforumsUI:show_bookmarks(page_number)
     self:render_thread_list(url, page_number, _("Bookmarks"), "bookmarks")
 end
 
-function SaforumsUI:render_thread_list(list_url, page_number, title, source)
+function SaforumsUI:render_thread_list(list_url, page_number, title, source, forum_id)
     self:when_online(function()
         local result = self.session:get(list_url)
         if self:show_result_error(result) then return end
@@ -413,26 +412,18 @@ function SaforumsUI:open_thread(thread, opts)
             end
         end
 
-        local html = threadhtml.render({
-            title = parsed.title or thread.title,
-            posts = parsed.posts,
-            avatars = avatars,
-            page = this_page,
-            total_pages = total_pages,
-        })
-
         logger.info(string.format("saforums: rendering page %s/%s with %d posts",
             tostring(this_page), tostring(total_pages), #parsed.posts))
 
         local ThreadView = require("saforums.threadview")
         local view = ThreadView:new{
-            title = (parsed.title or thread.title) .. " (" .. this_page .. "/" .. total_pages .. ")",
-            html_body = html,
-            resource_directory = dir,
-            saved_ratio = mode == "browse" and ratio or self:jump_ratio(jump_index, parsed.posts),
-            on_close = function(r)
-                self:save_position(thread_id, this_page, r)
-            end,
+            title = parsed.title or thread.title,
+            posts = parsed.posts,
+            avatars = avatars,
+            page = this_page,
+            total_pages = total_pages,
+            jump_index = jump_index,
+            on_close = function() end,
             on_page_action = function(action)
                 local delta = action == "nextpage" and 1 or -1
                 local target = this_page + delta

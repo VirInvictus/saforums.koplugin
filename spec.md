@@ -7,8 +7,8 @@ anything not stated here is not promised.
 
 `saforums.koplugin` reads the Something Awful Forums on an e-ink reader running KOReader.
 It is a lurker's client: log in with your own account, browse forums, watch unread counts,
-and read threads as EPUBs rendered by KOReader's normal reading engine. Composition
-(posting, replying, private messages) stays on other devices by design.
+and read threads in a native full-screen post view composed from KOReader's own widgets.
+Composition (posting, replying, private messages) stays on other devices by design.
 
 Target device for v1 is Brandon's Kindle Oasis 3 (KOReader v2026.03), but nothing in the
 design is Kindle-specific. Any KOReader installation with network access is in scope.
@@ -172,12 +172,12 @@ it enters an EPUB.
 
 ## Rendering
 
-Thread content renders **in the app**: a full-screen scrollable HTML view
-(`ScrollHtmlWidget` over mupdf's HTML engine), not an EPUB and not the reader.
-Decision reversed 2026-10-08 on device evidence: crengine's CSS subset could not
-carry the post-card design, and opening EPUBs in the reader polluted Brandon's
-bookshelf history with every thread. The in-app view has none of those failure
-modes: no files, no ReaderUI, no history entries, no sidecars, and refresh is a
+Thread content renders **in the app** as native KOReader widgets, not an EPUB,
+not an HTML engine, and not the reader. Two reversals on device evidence
+(2026-10-08): crengine's CSS subset could not carry the post-card design, and
+mupdf's HTML engine ignored floats, wrapped inline-blocks, and fell back to its
+own fonts. The native widget view also has what neither engine route had: no
+files, no ReaderUI, no history entries, no sidecars, and refresh is a
 re-render.
 
 - Posts render as **native KOReader widgets** (FrameContainer cards,
@@ -202,18 +202,18 @@ re-render.
   the bold author, custom title and gray meta line, left-aligned text. Avatars
   embed as data URIs; if the device renders them as broken boxes, a one-line
   switch drops them until the image path is proven.
-- Pages: multi-page threads navigate in the view via pseudo-links
-  (`saforums:nextpage`/`saforums:prevpage` rendered as a page nav above and
-  below the posts); page changes fetch with `noseen=1`. The 3em frog line
-  shows only on the last page.
-- Scroll position persists per thread AND per site page, and is restored on
-  the next open. Browse fetches never mark anything read; `noseen=1`
-  discipline is unchanged.
+- Pages: multi-page threads navigate through a native page-selector bar at
+  the bottom of the view (newer / page X of Y / older); page changes fetch
+  with `noseen=1`. The 3em frog line shows only on the last page.
+- Scroll position is not persisted across page changes or app restarts yet
+  (known v1 limitation; the persistence helpers exist in `ui.lua` dormant).
+  Browse fetches never mark anything read; `noseen=1` discipline is
+  unchanged.
 - Page keys and swipe scroll the view; back closes it. Site links are inert
-  in the lurker view; only the plugin's own pseudo-links act.
+  in the lurker view; only the plugin's own actions act.
 - Bookmarked threads (the bookmark shelf lists rows with unread counts) open
-  with `goto=newpost` WITHOUT `noseen` — the explicit continue-reading
-  action: the view lands on the first unseen post, seen posts render tinted,
+  with `goto=newpost` WITHOUT `noseen` (the explicit continue-reading
+  action): the view lands on the first unseen post, seen posts render tinted,
   and the server marks the page read as the side effect the user asked for.
   Holding a bookmark offers mark-unread (`action=resetseen`).
 - The EPUB builder remains in the tree, fully tested but unwired: a future

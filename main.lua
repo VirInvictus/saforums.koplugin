@@ -57,7 +57,7 @@ local Saforums = WidgetContainer:extend{
     name = "saforums",
     is_doc_only = false,
     fullname = _("SA Forums"),
-    description = _([[Read the Something Awful Forums as EPUBs. Lurker-first: login, forum index, thread lists with unread counts, read-only threads.]]),
+    description = _([[Read the Something Awful Forums on your e-reader. Lurker-first: login, forum index, thread lists with unread counts, read-only threads.]]),
 }
 
 function Saforums:onDispatcherRegisterActions()

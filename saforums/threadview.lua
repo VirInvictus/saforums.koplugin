@@ -128,7 +128,7 @@ local function post_card(post, inner_width, is_first)
     content[#content + 1] = HorizontalGroup:new(header)
     content[#content + 1] = VerticalSpan:new{ width = Screen:scaleBySize(6) }
 
-    for _, block in ipairs(postblocks.parse(post.body_html)) do
+    for _block_idx, block in ipairs(postblocks.parse(post.body_html)) do
         if block.type == "quote" then
             local quote_parts = {}
             if block.header then

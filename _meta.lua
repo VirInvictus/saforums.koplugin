@@ -8,5 +8,5 @@ return {
     name = "saforums",
     version = "0.2.0",
     fullname = _("SA Forums"),
-    description = _([[Read the Something Awful Forums as EPUBs. Lurker-first: forum index, thread lists with unread counts, and thread pages rendered as books.]]),
+    description = _([[Read the Something Awful Forums on your e-reader. Lurker-first: forum index, thread lists with unread counts, and thread pages rendered as post cards.]]),
 }

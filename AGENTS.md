@@ -68,6 +68,6 @@ plugin root: `main.lua` and `_meta.lua` install as `koreader/plugins/saforums.ko
 
 ## Version
 
-`VERSION` is the single source (currently 0.1.0). There is no pyproject/Cargo here;
+`VERSION` is the single source (currently 0.2.0). There is no pyproject/Cargo here;
 release tags `vX.Y.Z` carry versions, which is also how the App Store plugin manager
 detects updates. Bump `VERSION` and add a `patchnotes.md` entry in the same commit.

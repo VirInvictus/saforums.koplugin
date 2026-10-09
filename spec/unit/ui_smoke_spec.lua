@@ -25,6 +25,7 @@ preload("ui/uimanager", {
 preload("datastorage", {
     getSettingsDir = function() return "/tmp/saforums-test" end,
     getDataDir = function() return "/tmp/saforums-test" end,
+    getFullDataDir = function() return "/tmp/saforums-test" end,
 })
 preload("luasettings", {
     open = function()
@@ -195,6 +196,35 @@ describe("device UI (smoke)", function()
         assert.equals("nextpage", paged)
         view:handleBack()
         assert.is_true(closed)
+    end)
+
+    it("open_thread drives parsed posts all the way into the view", function()
+        -- regression: the native pivot's ui rewiring silently no-op'd, so
+        -- ThreadView received the old html_body interface and rendered an
+        -- empty frog page. This drives the real open_thread with a canned
+        -- session response and asserts posts arrive.
+        local shown
+        package.loaded["ui/uimanager"].show = function(_, widget)
+            shown = widget
+        end
+        package.loaded["ui/uimanager"].setDirty = function() end
+        local fixture
+        do
+            local handle = io.open("spec/fixtures/postspage.html", "r")
+            fixture = handle:read("*a")
+            handle:close()
+        end
+        local instance = ui.new()
+        instance.session.get = function(_, url, opts)
+            assert.is_nil(opts) -- browse fetches are text; raw is for binaries
+            return { kind = "ok", code = 200, body = fixture }
+        end
+        instance:open_thread({ id = "4231003", title = "t" }, { page = 1, mode = "browse" })
+        assert.is_not_nil(shown, "no view was shown")
+        assert.equals(3, #shown.posts)
+        assert.equals(1, shown.page)
+        assert.equals(7, shown.total_pages)
+        package.loaded["ui/uimanager"].show = function() end
     end)
 
     it("main.lua instantiates the way PluginLoader does", function()

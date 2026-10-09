@@ -11,6 +11,7 @@
 local GETTEXT_SCOPED_FILES = {
     "main.lua",
     "saforums/ui.lua",
+    "saforums/threadview.lua",
 }
 
 describe("source hygiene", function()
