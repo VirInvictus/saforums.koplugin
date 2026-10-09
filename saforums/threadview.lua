@@ -227,7 +227,10 @@ function ThreadView:build()
 
     local inner_width = screen_w - Screen:scaleBySize(16)
     local thread_parts = {}
-    for idx, post in ipairs(self.posts or {}) do
+    for _idx, post in ipairs(self.posts or {}) do
+        if self.avatars and post.author_id then
+            post.avatar_file = self.avatars[post.author_id]
+        end
         thread_parts[#thread_parts + 1] = post_card(post, inner_width, idx == 1)
         thread_parts[#thread_parts + 1] = VerticalSpan:new{ width = Screen:scaleBySize(4) }
     end
