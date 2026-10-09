@@ -40,8 +40,7 @@ local ThreadView = InputContainer:extend{
     avatars = nil,   -- user id -> absolute cache path
     page = 1,
     total_pages = 1,
-    jump_index = nil,
-    on_close = nil,  -- called on back; the native view owns no scroll state yet
+    on_close = nil,       -- called on back
     on_page_action = nil, -- receives "prevpage" or "nextpage"
 }
 
@@ -177,18 +176,11 @@ local function post_card(post, inner_width, is_first)
     return VerticalGroup:new(card)
 end
 
-function ThreadView:init()
+-- Rebuilds the whole widget tree. Used for progressive avatar refresh;
+-- scroll position resets (this runs once per thread, after first paint).
+function ThreadView:build()
     local screen_w = Screen:getWidth()
     local screen_h = Screen:getHeight()
-
-    self.align = "center"
-    self.region = Geom:new{ x = 0, y = 0, w = screen_w, h = screen_h }
-
-    if Device:hasKeys() then
-        self.key_events = {
-            Close = { { Device.input.group.Back } },
-        }
-    end
 
     local titlebar = TitleBar:new{
         width = screen_w,
@@ -205,7 +197,6 @@ function ThreadView:init()
         show_parent = self,
     }
 
-    -- Native page selector: newer | page X of Y | older, file-manager style.
     local page_label = TextWidget:new{
         text = string.format("%s %d / %d", _("page"), self.page, self.total_pages),
         face = Font:getFace("cfont", Screen:scaleBySize(12)),
@@ -261,13 +252,38 @@ function ThreadView:init()
         },
     }
 
-    self[1] = FrameContainer:new{
+    return FrameContainer:new{
         background = Blitbuffer.COLOR_WHITE,
         bordersize = 0,
         margin = 0,
         padding = 0,
         layout,
     }
+end
+
+-- Progressive avatar refresh: swap in fetched avatars and repaint.
+function ThreadView:set_avatars(avatars)
+    self.avatars = avatars
+    self[1] = self:build()
+    UIManager:setDirty(self, "full")
+end
+
+function ThreadView:init()
+    local screen_w = Screen:getWidth()
+    local screen_h = Screen:getHeight()
+
+    self.align = "center"
+    self.region = Geom:new{ x = 0, y = 0, w = screen_w, h = screen_h }
+
+    if Device:hasKeys() then
+        self.key_events = {
+            Close = { { Device.input.group.Back } },
+        }
+        -- Page keys are deliberately NOT claimed: unhandled events fall
+        -- through to the ScrollableContainer, which scrolls the thread.
+    end
+
+    self[1] = self:build()
 end
 
 function ThreadView:onPageAction(action)

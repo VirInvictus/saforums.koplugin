@@ -19,6 +19,7 @@ local ReaderUI = require("apps/reader/readerui")
 local UIManager = require("ui/uimanager")
 local lfs = require("libs/libkoreader-lfs")
 local logger = require("logger")
+local Trapper = require("ui/trapper")
 local _ = require("gettext")
 
 local config = require("saforums.config")
@@ -350,6 +351,9 @@ function SaforumsUI:open_thread(thread, opts)
     local mode = opts.mode or "browse"
     self:message(_("Fetching thread…"))
     self:when_online(function()
+        -- Trapper keeps the UI alive across the blocking fetches: each
+        -- info call yields to the event loop, and a tap skips the step.
+        Trapper:wrap(function()
         local url = config.base_url .. "/showthread.php?threadid=" .. thread.id
             .. "&perpage=" .. config.perpage
         if mode == "continue" then
@@ -377,28 +381,6 @@ function SaforumsUI:open_thread(thread, opts)
             end
         end
 
-        -- Avatars: fetched once per poster and cached on device; failures
-        -- are cosmetic (the post renders without one).
-        local dir = (DataStorage:getFullDataDir() or DataStorage:getDataDir()) .. "/saforums"
-        if not lfs.attributes(dir, "mode") then
-            local created, mkdir_err = lfs.mkdir(dir)
-            if not created then
-                logger.warn("saforums: mkdir failed for", dir, ":", tostring(mkdir_err))
-            end
-        end
-        local avatar_cache = require("saforums.avatars")
-        local avatars, seen_poster = {}, {}
-        for _idx, post in ipairs(parsed.posts) do
-            local uid = post.author_id
-            if uid and post.avatar_src and not seen_poster[uid] then
-                seen_poster[uid] = true
-                local cached = avatar_cache.ensure(dir .. "/avatars", self.session, uid, post.avatar_src)
-                if cached then
-                    avatars[uid] = cached -- absolute path; ImageWidget loads it directly
-                end
-            end
-        end
-
         local thread_id = parsed.thread_id or thread.id
         local pagination = parsed.pagination or {}
         local this_page = pagination.current_page or page
@@ -419,7 +401,7 @@ function SaforumsUI:open_thread(thread, opts)
         local view = ThreadView:new{
             title = parsed.title or thread.title,
             posts = parsed.posts,
-            avatars = avatars,
+            avatars = {},
             page = this_page,
             total_pages = total_pages,
             jump_index = jump_index,
@@ -433,6 +415,39 @@ function SaforumsUI:open_thread(thread, opts)
             end,
         }
         UIManager:show(view)
+
+        -- Avatars are a second pass AFTER first paint: the old inline loop
+        -- froze the event loop for tens of seconds on avatar-heavy pages
+        -- (the Hyprland "terminate application?" hang). Each fetch yields
+        -- to the UI between steps and the whole pass is skippable.
+        local avatar_cache = require("saforums.avatars")
+        local pending = {}
+        local seen_poster = {}
+        for _idx, post in ipairs(parsed.posts) do
+            local uid = post.author_id
+            if uid and post.avatar_src and not seen_poster[uid] then
+                seen_poster[uid] = true
+                pending[#pending + 1] = { uid = uid, src = post.avatar_src }
+            end
+        end
+        if #pending > 0 then
+            local dir = (DataStorage:getFullDataDir() or DataStorage:getDataDir()) .. "/saforums"
+            local avatar_cache_dir = dir .. "/avatars"
+            local avatars = {}
+            for _idx, item in ipairs(pending) do
+                local go_on = Trapper:info(string.format(
+                    _("Fetching avatars %d/%d (tap to skip)…"), _idx, #pending), true)
+                if go_on == false then break end
+                local cached = avatar_cache.ensure(avatar_cache_dir, self.session, item.uid, item.src)
+                if cached then
+                    avatars[item.uid] = cached
+                end
+            end
+            if next(avatars) then
+                view:set_avatars(avatars)
+            end
+        end
+        end)
     end)
 end
 

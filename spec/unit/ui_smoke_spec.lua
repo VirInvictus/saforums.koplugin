@@ -68,6 +68,10 @@ preload("ui/widget/horizontalspan", { new = function(_, o) return o end })
 preload("ui/widget/verticalspan", { new = function(_, o) return o end })
 preload("ui/widget/iconbutton", { new = function(_, o) return o end })
 preload("ui/widget/container/scrollablecontainer", { new = function(_, o) return o end })
+preload("ui/trapper", {
+    wrap = function(_, fn) fn() end,
+    info = function() return true end,
+})
 preload("ui/widget/container/inputcontainer", {
     extend = function(_, members)
         local cls = {}
