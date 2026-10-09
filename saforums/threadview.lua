@@ -11,6 +11,7 @@ recorded in the spec).
 
 local Blitbuffer = require("ffi/blitbuffer") -- module lives at the install root on this generation
 local Device = require("device")
+local logger = require("logger")
 local Font = require("ui/font")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
@@ -241,12 +242,23 @@ function ThreadView:build()
     -- dimen needs the real x/y: the container hit-tests gestures against
     -- this rectangle (pos:intersectWith), so an unpositioned Geom makes
     -- every pan/swipe bounce off.
+    local content_height = 0
+    for _, part in ipairs(thread_parts) do
+        local ok, sz = pcall(function() return part:getSize() end)
+        if ok and sz then content_height = content_height + (sz.h or 0) end
+    end
+    local scroll_h = screen_h - titlebar:getHeight() - bar_height
+    logger.info(string.format(
+        "saforums: view %dx%d, titlebar %d, bar %d, scroll area %dx%d, %d parts, content height %d",
+        screen_w, screen_h, titlebar:getHeight(), bar_height,
+        screen_w, scroll_h, #thread_parts, content_height))
+
     local scrollable = ScrollableContainer:new{
         dimen = Geom:new{
             x = 0,
             y = titlebar:getHeight(),
             w = screen_w,
-            h = screen_h - titlebar:getHeight() - bar_height,
+            h = scroll_h,
         },
         scroll_bar_position = "right",
         VerticalGroup:new(thread_parts),
