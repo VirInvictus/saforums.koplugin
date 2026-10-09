@@ -19,7 +19,6 @@ local ReaderUI = require("apps/reader/readerui")
 local UIManager = require("ui/uimanager")
 local lfs = require("libs/libkoreader-lfs")
 local logger = require("logger")
-local Trapper = require("ui/trapper")
 local _ = require("gettext")
 
 local config = require("saforums.config")
@@ -351,9 +350,6 @@ function SaforumsUI:open_thread(thread, opts)
     local mode = opts.mode or "browse"
     self:message(_("Fetching thread…"))
     self:when_online(function()
-        -- Trapper keeps the UI alive across the blocking fetches: each
-        -- info call yields to the event loop, and a tap skips the step.
-        Trapper:wrap(function()
         local url = config.base_url .. "/showthread.php?threadid=" .. thread.id
             .. "&perpage=" .. config.perpage
         if mode == "continue" then
@@ -435,9 +431,6 @@ function SaforumsUI:open_thread(thread, opts)
             local avatar_cache_dir = dir .. "/avatars"
             local avatars = {}
             for _idx, item in ipairs(pending) do
-                local go_on = Trapper:info(string.format(
-                    _("Fetching avatars %d/%d (tap to skip)…"), _idx, #pending), true)
-                if go_on == false then break end
                 local cached = avatar_cache.ensure(avatar_cache_dir, self.session, item.uid, item.src)
                 if cached then
                     avatars[item.uid] = cached
@@ -447,7 +440,6 @@ function SaforumsUI:open_thread(thread, opts)
                 view:set_avatars(avatars)
             end
         end
-        end)
     end)
 end
 

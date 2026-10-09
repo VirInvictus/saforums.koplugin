@@ -38,6 +38,7 @@ local ThreadView = InputContainer:extend{
     title = "",
     posts = nil,     -- parsed posts (postspageparser output)
     avatars = nil,   -- user id -> absolute cache path
+    discarded = false,
     page = 1,
     total_pages = 1,
     on_close = nil,       -- called on back
@@ -293,6 +294,7 @@ function ThreadView:onPageAction(action)
 end
 
 function ThreadView:handleBack()
+    self.discarded = true -- stops any pending scheduled avatar pass
     if self.on_close then
         self.on_close(nil)
     end
