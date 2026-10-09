@@ -33,6 +33,27 @@ preload("ui/uimanager", {
     scheduleIn = function() end,
 })
 
+preload("ltn12", {
+    source = {
+        string = function(s)
+            return function()
+                if not s then return nil end
+                local chunk = s
+                s = nil
+                return chunk
+            end
+        end,
+    },
+    sink = {
+        table = function(t)
+            return function(chunk)
+                if chunk then t[#t + 1] = chunk end
+                return true
+            end
+        end,
+    },
+})
+
 preload("ffi/util", {
     template = function(str, ...)
         local args = { ... }
