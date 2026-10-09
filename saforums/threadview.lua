@@ -238,8 +238,16 @@ function ThreadView:build()
         }
     end
 
+    -- dimen needs the real x/y: the container hit-tests gestures against
+    -- this rectangle (pos:intersectWith), so an unpositioned Geom makes
+    -- every pan/swipe bounce off.
     local scrollable = ScrollableContainer:new{
-        dimen = Geom:new{ w = screen_w, h = screen_h - titlebar:getHeight() - bar_height },
+        dimen = Geom:new{
+            x = 0,
+            y = titlebar:getHeight(),
+            w = screen_w,
+            h = screen_h - titlebar:getHeight() - bar_height,
+        },
         scroll_bar_position = "right",
         VerticalGroup:new(thread_parts),
     }
