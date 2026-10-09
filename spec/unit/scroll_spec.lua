@@ -34,6 +34,7 @@ preload("ui/uimanager", {
     close = function() end,
     nextTick = function(_, fn) fn() end,
     setDirty = function() end,
+    scheduleIn = function() end,
 })
 preload("ui/size", {
     padding = { large = 10, default = 5, small = 3 },
