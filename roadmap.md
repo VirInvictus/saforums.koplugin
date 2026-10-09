@@ -143,20 +143,23 @@ one quiet message.
 
 ## Phase 5: distribution
 
-- [ ] Marketplace contract, all of it (spec: Platform): `_meta.lua` name + plain-string
-      version in lockstep with VERSION and the tag (done 2026-10-08, test-pinned);
-      GitHub topic `koreader-plugin`; repo named `saforums.koplugin` (the `.koplugin`
-      suffix is a discovery path in both catalogs); repo About description written
-      (it is the catalog description, not `_meta.lua`); every release carries a
-      `.zip` asset (mandatory for Storefront, first zip asset wins).
-- [ ] README install instructions (manual sideload path first).
-- [ ] Tag and release with the release procedure followed in full; verify the
-      App Store update check sees the tag (version-based, not mtime).
+- [x] Marketplace contract, all of it (spec: Platform): `_meta.lua` name + plain-string
+      version in lockstep with VERSION and the tag (test-pinned); GitHub topic
+      `koreader-plugin`; repo `VirInvictus/saforums.koplugin` (public, About description
+      written); the v0.2.0 release carries `saforums.koplugin-v0.2.0.zip` (mandatory
+      for Storefront, first zip asset wins).
+- [x] README install instructions (manual sideload path first).
+- [x] Tag and release (2026-10-08): release-auditor pre-flight caught the open_thread
+      seam before the tag; verbatim tag verified via cat-file and for-each-ref; GitHub
+      release carries the zip asset; harvest discoverability verified through the
+      App Store's own GitHub search query.
+- [x] Emulator as the desktop-KOReader install: boots and loads the plugin
+      (~/.local/share/koreader-dev, kodev).
+- [ ] Confirm the on-device App Store lists and cold-installs it, then Storefront
+      at its next catalog build.
 - [ ] Voice polish pass on everything a stranger hits first: first-login copy, the
-      Cloudflare error, the About screen ("not endorsed by Something Awful" line
-      included).
-- [ ] Submit/confirm listing in the App Store catalog, then Storefront; verify a
-      cold install from each on a second KOReader install (desktop KOReader counts).
+      Cloudflare error, and an About screen ("not endorsed by Something Awful" line
+      included; the screen itself is not built yet).
 - [ ] Stretch, only after everything above: one deliberately rare, harmless easter
       egg in the Magic Cake pattern (found, not sought; never documented in-app).
 
