@@ -141,6 +141,15 @@ Exit: a long thread (hundreds of posts, many pages) survives refresh, page fetch
 KOReader restarts without losing the reader's place, and a 40-thread refresh reads as
 one quiet message.
 
+## The 1:1 parity program
+
+Brandon's directive (2026-10-08): full parity with the Awful.app client. The
+master plan lives in `PARITY.md` (four mining passes consolidated): Wave A
+reading parity, Wave B lists/bookmarks, Wave C composition (draft-file track),
+Wave D gated surfaces. Waves land through the same verify loop (busted, kodev,
+Kindle). The phase boxes below remain the core-loop ledger; PARITY.md supersedes
+the deferred list for everything the mining covered.
+
 ## Phase 5: distribution
 
 - [x] Marketplace contract, all of it (spec: Platform): `_meta.lua` name + plain-string
