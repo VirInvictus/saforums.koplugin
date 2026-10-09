@@ -412,10 +412,11 @@ function SaforumsUI:open_thread(thread, opts)
         }
         UIManager:show(view)
 
-        -- Avatars are a second pass AFTER first paint: the old inline loop
-        -- froze the event loop for tens of seconds on avatar-heavy pages
-        -- (the Hyprland "terminate application?" hang). Each fetch yields
-        -- to the UI between steps and the whole pass is skippable.
+        -- Avatars are a second pass AFTER first paint: one scheduled step
+        -- per fetch, yielding to the event loop between each. No overlay,
+        -- no toast, nothing between the user and the posts. The view swaps
+        -- the avatars in with one repaint when the pass completes; closing
+        -- the view sets a flag that stops the pass.
         local avatar_cache = require("saforums.avatars")
         local pending = {}
         local seen_poster = {}
@@ -427,18 +428,31 @@ function SaforumsUI:open_thread(thread, opts)
             end
         end
         if #pending > 0 then
-            local dir = (DataStorage:getFullDataDir() or DataStorage:getDataDir()) .. "/saforums"
-            local avatar_cache_dir = dir .. "/avatars"
+            local data_dir = (DataStorage:getFullDataDir() or DataStorage:getDataDir()) .. "/saforums"
+            if not lfs.attributes(data_dir, "mode") then
+                lfs.mkdir(data_dir)
+            end
+            local avatar_cache_dir = data_dir .. "/avatars"
             local avatars = {}
-            for _idx, item in ipairs(pending) do
+            local function fetch_step(i)
+                if view.discarded or i > #pending then
+                    if next(avatars) then
+                        view:set_avatars(avatars)
+                    end
+                    return
+                end
+                local item = pending[i]
                 local cached = avatar_cache.ensure(avatar_cache_dir, self.session, item.uid, item.src)
                 if cached then
                     avatars[item.uid] = cached
                 end
+                UIManager:scheduleIn(0.05, function()
+                    fetch_step(i + 1)
+                end)
             end
-            if next(avatars) then
-                view:set_avatars(avatars)
-            end
+            UIManager:scheduleIn(1.0, function()
+                fetch_step(1)
+            end)
         end
     end)
 end
