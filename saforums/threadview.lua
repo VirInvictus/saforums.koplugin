@@ -261,8 +261,13 @@ function ThreadView:build()
             h = scroll_h,
         },
         scroll_bar_position = "right",
+        show_parent = self,
         VerticalGroup:new(thread_parts),
     }
+    -- UIManager routes inner subwidget repaints through the cropping widget
+    -- (scrollablecontainer.lua header comment, lines 4-11); without this,
+    -- button flashes and InfoMessage dismissals leak outside the scroll area.
+    self.cropping_widget = scrollable
 
     local layout = VerticalGroup:new{
         titlebar,
