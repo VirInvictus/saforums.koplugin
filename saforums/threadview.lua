@@ -243,7 +243,7 @@ function ThreadView:build()
     -- this rectangle (pos:intersectWith), so an unpositioned Geom makes
     -- every pan/swipe bounce off.
     local content_height = 0
-    for _, part in ipairs(thread_parts) do
+    for _part_idx, part in ipairs(thread_parts) do
         local ok, sz = pcall(function() return part:getSize() end)
         if ok and sz then content_height = content_height + (sz.h or 0) end
     end
