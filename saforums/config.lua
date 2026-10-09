@@ -6,7 +6,7 @@ spec.md; change both together.
 local config = {
     base_url = "https://forums.somethingawful.com",
     perpage = 40,
-    version = "0.1.0",
+    version = "0.2.0",
 
     -- Cookie names the session hangs on (spec: Semantics > Session).
     session_user_cookie = "bbuserid",
