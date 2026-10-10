@@ -57,11 +57,16 @@ duty is to never disturb that state except on purpose:
   post on the fetched page. This is the site's behavior, not ours.
 - Fetching with `noseen=1` leaves the server-side state untouched. Every implicit fetch
   (rendering, prefetching, refreshing a list) uses `noseen=1`.
-- Explicit user actions may touch state: "Continue reading" fetches with
-  `goto=newpost` (the site redirects to the first page containing unseen posts and marks
-  seen as a side effect of the view), and "mark unread" POSTs `action=resetseen`.
-- Thread lists show, per thread: title, author, reply count, unread-post count, and a
-  read/unread indication, parsed from the row structure below.
+- Explicit user actions may touch state, and a tap or menu choice is explicit:
+  opening a thread the account has seen continues at the first unseen post
+  (`goto=newpost`); opening a never-opened thread browses page 1 with `noseen=1`
+  (nothing is marked); "mark unread" POSTs `action=resetseen`; "mark read" from a
+  list for a never-opened thread fetches `goto=lastpost` (no noseen); bookmark
+  star changes POST `action=add` with `category_id`. Thread lists show, per
+  thread: title, author, reply count, unread-post count, and a read/unread
+  indication, parsed from the row structure below.
+- Announcements carry no server-side read state; the plugin tracks them read
+  locally, by title.
 
 ### Composition (Phase 6)
 
@@ -95,8 +100,12 @@ The plugin acts as the user's own browser session, at human pace:
 
 - Honest User-Agent: `saforums.koplugin/<version> (KOReader)`. No browser impersonation.
 - One request at a time. No background polling, no prefetch storms.
-- List refreshes are throttled (15 minutes per forum list, matching the iOS client's
-  observed courtesy ceiling); a manual refresh always wins.
+- Lists render from cache when the cache is fresh: forum lists 15 minutes,
+  bookmarks 10 minutes, the forums index 6 hours, announcement bodies 20 hours
+  per forum. A stale list renders from cache immediately and refetches in the
+  background (stale-while-revalidate); an explicit refresh always bypasses the
+  cache. The cache persists with the plugin's settings, so freshness survives
+  restarts.
 - Read-only through Phase 5: the plugin never issues a request that creates or
   modifies content. The only POSTs are login, `action=setseen`/`action=resetseen`,
   and bookmark add/remove. Phase 6 adds exactly one mutation surface, reply
@@ -110,10 +119,11 @@ All relative to `https://forums.somethingawful.com/`.
 |---|---|
 | Login | `POST account.php?json=1` (`action=login`, `username`, `password`, `next`) |
 | Forum index | `GET index.php?json=1` (JSON: forum tree, current user) |
-| Thread list | `GET forumdisplay.php?forumid=N&perpage=40&pagenumber=K` |
+| Thread list | `GET forumdisplay.php?forumid=N&perpage=40&pagenumber=K` with optional `posticon=<tagid>` when a tag filter is active |
 | Bookmarks list | `GET bookmarkthreads.php?action=view&perpage=40&pagenumber=K` |
-| Bookmark add/remove | `POST bookmarkthreads.php` (`json=1`, `action=add`/`remove`, `threadid`) |
-| Thread pages | `GET showthread.php?threadid=N&perpage=40` with optional `goto=newpost`, `noseen=1`, `pagenumber=K` |
+| Bookmark add/remove | `POST bookmarkthreads.php` (`json=1`, `action=add`/`remove`, `threadid`; `action=add` also takes `category_id=0..5` to set the bookmark star, `-1` to clear it) |
+| Thread pages | `GET showthread.php?threadid=N&perpage=40` with optional `goto=newpost` (continue at first unread), `goto=lastpost` (mark a never-opened thread read), `noseen=1`, `pagenumber=K` |
+| Announcements | `GET announcement.php?forumid=N` (announcement bodies; reads only) |
 | Mark seen to index | `POST showthread.php` (`action=setseen`, `threadid`, `index`) |
 | Mark unread | `POST showthread.php` (`threadid`, `action=resetseen`, `json=1`) |
 | Reply form / quote | `GET newreply.php?action=newreply&threadid=N[, postid=M for quote]` (the postid quote fetch is live since v0.4.0 for copy-post-BBcode; the form mirror and submission stay Phase 6) |
@@ -121,7 +131,7 @@ All relative to `https://forums.somethingawful.com/`.
 
 Out of scope (do not send): `newthread.php`, `editpost.php`, `private.php`,
 `query.php` (search is Platinum-gated), `member2.php`, `banlist.php`,
-`poll.php`, `dictionary.php`, `announcement.php`, archives endpoints.
+`poll.php`, `dictionary.php`, archives endpoints.
 `newreply.php` joined the live set in v0.4.0 for one read-only use, the
 quote fetch behind copy-post-BBcode (a GET that submits nothing); its form
 mirror and submission path open with Phase 6, under the Composition rules.
@@ -136,14 +146,23 @@ the same commit as the parser.
 Thread list row (`tr.thread`):
 
 - Thread id: the row's `id` attribute, digits only.
-- Title: `td.title a.thread_title` text.
+- Title: `td.title a.thread_title` text. A row whose title cell links through
+  `a.announcement` instead is a site announcement: it carries the usual
+  author, last-post date, and icon cells but no unread state, and it never
+  counts as a thread.
 - Author: `td.author a` (user id in the href query string).
 - Unread count: `div.lastseen a.count b` text (includes the original post). The row is
-  fully read when `div.lastseen a.x` exists.
-- Replies: `td.replies` text (excludes the original post).
+  fully read when `div.lastseen a.x` exists. A row with no `div.lastseen` cell
+  at all has never been opened by the account.
+- Replies: `td.replies` text (excludes the original post). Page estimate is
+  `replies / 40 + 1` (site perpage is pinned to 40 on every request).
+- Rating: `td.rating img[title]`, title text of the form "N votes, average
+  X.XX"; both numbers parse out of it.
 - Last post: `td.lastpost a.author` and `td.lastpost div.date`.
 - Sticky: `td.title` has class `title_sticky`; closed: row has class `closed`.
 - Bookmark star color: `td.star` classes `bm0` through `bm5`.
+- Filterable tags: `div.thread_tags a[href*='posticon']` enumerates the
+  forum's thread tags (id = the `posticon` query parameter).
 - Pagination: `div.pages` with `data-current-page`, `data-total-pages`, `data-base-url`,
   `data-per-page`.
 

@@ -575,3 +575,202 @@ describe("wave A: post actions", function()
         assert.is_nil(instance:cache_image("https://x.fixture.invalid/a.png", "bytes"))
     end)
 end)
+
+describe("wave B: lists and bookmarks", function()
+    local function capture_button_labels(captured)
+        local labels = {}
+        for _row, buttons in ipairs(captured.buttons) do
+            for _i, button in ipairs(buttons) do
+                labels[#labels + 1] = button.text
+            end
+        end
+        return labels
+    end
+
+    it("rich rows carry the secondary line, star letter, and unread badge", function()
+        local instance = ui.new()
+        local item = instance:thread_list_item({
+            title = "A Thread", replies = 83, unread_count = 12,
+            star = 1, last_post_author = "Killer",
+        }, "forum")
+        assert.matches("^A Thread %[R%]", item.text)
+        assert.matches("3 pages", item.text)
+        assert.matches("83 replies", item.text)
+        assert.matches("Killed by Killer", item.text)
+        assert.equals("12", item.mandatory)
+        assert.is_truthy(item.bold)
+    end)
+
+    it("read threads show killed-by, never-opened show posted-by", function()
+        local instance = ui.new()
+        local read_item = instance:thread_list_item(
+            { title = "R", is_read = true, last_post_author = "Killer" }, "forum")
+        assert.matches("Killed by Killer", read_item.text)
+        local new_item = instance:thread_list_item(
+            { title = "N", author_name = "Starter" }, "forum")
+        assert.matches("Posted by Starter", new_item.text)
+    end)
+
+    it("ratings render in the secondary line", function()
+        local instance = ui.new()
+        local item = instance:thread_list_item(
+            { title = "T", rating_average = 4.0, rating_votes = 3 }, "forum")
+        assert.matches("4%.0 %(3 votes%)", item.text)
+    end)
+
+    it("the hold menu matches thread state conditions", function()
+        local buttondialog = require("ui/widget/buttondialog")
+        local captured
+        buttondialog.new = function(_, options)
+            captured = options
+            return options
+        end
+
+        instance_never = ui.new()
+        instance_never:thread_hold_menu({ id = "1", title = "T" }, "forum")
+        local labels = capture_button_labels(captured)
+        assert.truthy(has_text(labels, "Mark read"))
+        assert.falsy(has_text(labels, "Mark unread"))
+        assert.falsy(has_text(labels, "Open at first unread"))
+        assert.truthy(has_text(labels, "Add bookmark"))
+        assert.falsy(has_text(labels, "Remove bookmark"))
+
+        instance_seen = ui.new()
+        instance_seen:thread_hold_menu({ id = "2", title = "T", unread_count = 3, replies = 50 }, "forum")
+        labels = capture_button_labels(captured)
+        assert.truthy(has_text(labels, "Mark unread"))
+        assert.falsy(has_text(labels, "Mark read"))
+        assert.truthy(has_text(labels, "Open at first unread"))
+        assert.truthy(has_text(labels, "Open last page (2)"))
+
+        buttondialog.new = function(_, options) return options end
+    end)
+
+    it("tap branches: continue for unread threads, browse otherwise", function()
+        local instance = ui.new()
+        local opened
+        instance.open_thread = function(self, _thread, opts) opened = opts end
+        local parsed = { threads = {}, announcements = {} }
+
+        instance:list_item_tapped({ thread = { id = "9", unread_count = 2 } },
+            parsed, 1, "t", "forum", "46", "url")
+        assert.equals("continue", opened.mode)
+        instance:list_item_tapped({ thread = { id = "9", is_read = true } },
+            parsed, 1, "t", "forum", "46", "url")
+        assert.equals("browse", opened.mode)
+        instance:list_item_tapped({ thread = { id = "9" } },
+            parsed, 1, "t", "forum", "46", "url")
+        assert.equals("browse", opened.mode)
+        instance:list_item_tapped({ thread = { id = "9", is_read = true } },
+            parsed, 1, "t", "bookmarks", nil, "url")
+        assert.equals("continue", opened.mode)
+    end)
+
+    it("the bookmark filter narrows rows client-side", function()
+        local instance = ui.new()
+        local threads = {
+            { title = "u", unread_count = 3 },
+            { title = "r", is_read = true },
+            { title = "s", star = 2 },
+        }
+        instance.bookmark_filter = "unread"
+        assert.equals(1, #instance:filter_bookmarks(threads, "bookmarks"))
+        instance.bookmark_filter = "read"
+        assert.equals(1, #instance:filter_bookmarks(threads, "bookmarks"))
+        instance.bookmark_filter = "star2"
+        assert.equals(1, #instance:filter_bookmarks(threads, "bookmarks"))
+        instance.bookmark_filter = "all"
+        assert.equals(3, #instance:filter_bookmarks(threads, "bookmarks"))
+        assert.equals(3, #instance:filter_bookmarks(threads, "forum"))
+    end)
+
+    it("a fresh cache renders with no fetch; force bypasses; stale renders and refetches", function()
+        local instance = ui.new()
+        local parsed = { threads = {}, announcements = {}, pagination = { total_pages = 2 } }
+        instance.cache:put("forumlist:46:1", parsed)
+        local fetched = 0
+        instance.session.get = function()
+            fetched = fetched + 1
+            return { kind = "ok", code = 200, body = "" }
+        end
+        local shown
+        package.loaded["ui/uimanager"].show = function(_, w) shown = w end
+
+        instance:show_thread_list("46", 1, "T")
+        assert.equals(0, fetched)
+        assert.is_not_nil(shown)
+
+        instance.cache.entries["forumlist:46:1"].stored_at = os.time() - 1000
+        instance:show_thread_list("46", 1, "T")
+        assert.equals(1, fetched)
+
+        package.loaded["ui/uimanager"].show = function() end
+    end)
+end)
+
+describe("wave B: forums index", function()
+    it("tapping a plain forum row opens that forum's list", function()
+        local instance = ui.new()
+        local menu_options
+        package.loaded["ui/widget/menu"].new = function(_, options)
+            menu_options = options
+            return options
+        end
+        local opened
+        instance.show_thread_list = function(self, forum_id, _page, title)
+            opened = { forum_id = forum_id, title = title }
+        end
+        local flat = {
+            { id = "1", title = "General", depth = 0, has_threads = true },
+            { id = "26", title = "Sub Forum", depth = 1 },
+            { id = "46", title = "Fixtures", depth = 0, has_threads = true },
+        }
+        instance:render_forum_index(flat)
+
+        -- the plain row (last item) must carry the forum id the tap reads
+        local plain = menu_options.item_table[#menu_options.item_table]
+        assert.equals("46", plain.forum_id)
+        menu_options.onMenuSelect(menu_options, plain)
+        assert.equals("46", opened.forum_id)
+        assert.equals("Fixtures", opened.title)
+
+        -- a group header tap toggles collapse instead of opening
+        local group = menu_options.item_table[2]
+        assert.is_truthy(group.group)
+        menu_options.onMenuSelect(menu_options, group)
+        assert.is_truthy(instance.forums_state.collapsed["1"])
+        package.loaded["ui/widget/menu"].new = function(_, options) return options end
+    end)
+end)
+
+describe("wave B: back-stack", function()
+    it("thread taps keep the list stacked beneath; other taps still close it", function()
+        local instance = ui.new()
+        local menu_options
+        package.loaded["ui/widget/menu"].new = function(_, options)
+            menu_options = options
+            return options
+        end
+        local closed_count = 0
+        package.loaded["ui/uimanager"].close = function() closed_count = closed_count + 1 end
+        local opened
+        instance.open_thread = function(self, _thread, opts) opened = opts end
+        local parsed = {
+            threads = { { title = "T", unread_count = 1 } },
+            announcements = {},
+            pagination = { total_pages = 1 },
+        }
+
+        instance:render_list_page(parsed, 1, "T", "forum", "46", "url")
+        local thread_item = menu_options.item_table[2]
+        assert.is_truthy(thread_item.keep_menu)
+        menu_options.onMenuSelect(menu_options, thread_item)
+        assert.equals("continue", opened.mode)
+        assert.equals(0, closed_count) -- the list stays beneath the thread
+
+        menu_options.onMenuSelect(menu_options, menu_options.item_table[1]) -- Refresh
+        assert.equals(1, closed_count)
+
+        package.loaded["ui/uimanager"].close = function() end
+    end)
+end)

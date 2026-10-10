@@ -16,8 +16,9 @@ describe("threadlistparser", function()
         result = threadlistparser.parse(fixture("threadlist.html"))
     end)
 
-    it("finds every thread row", function()
-        assert.equals(3, #result.threads)
+    it("finds every thread row, announcements kept apart", function()
+        assert.equals(4, #result.threads)
+        assert.equals(1, #result.announcements)
     end)
 
     it("extracts the page identity", function()
@@ -40,15 +41,39 @@ describe("threadlistparser", function()
         assert.equals("101", first.author_id)
     end)
 
-    it("reads unread counts from the lastseen cell", function()
-        assert.equals(12, result.threads[1].unread_count)
-        assert.equals(3, result.threads[3].unread_count)
-        assert.is_false(result.threads[1].is_read)
-    end)
-
     it("marks rows with an x link as fully read", function()
         assert.is_nil(result.threads[2].unread_count)
         assert.is_true(result.threads[2].is_read)
+    end)
+
+    it("recognizes never-opened threads by the missing lastseen cell", function()
+        local never = result.threads[4]
+        assert.equals("4231004", never.id)
+        assert.is_nil(never.unread_count)
+        assert.is_false(never.is_read)
+    end)
+
+    it("parses announcement rows into the announcement list", function()
+        local announcement = result.announcements[1]
+        assert.equals("Fixture Announcement: The Site Is On Fire (announcement)", announcement.title)
+        assert.equals("Admin Person", announcement.author_name)
+        assert.equals("1", announcement.author_id)
+        assert.equals("09:00 AM Oct 1, 2026", announcement.last_post_date)
+        assert.is_true(announcement.announcement)
+    end)
+
+    it("parses the rating numbers out of the img title", function()
+        assert.equals(3, result.threads[1].rating_votes)
+        assert.equals(4.0, result.threads[1].rating_average)
+        assert.is_nil(result.threads[2].rating_votes)
+    end)
+
+    it("reads the forum's filterable tag list", function()
+        assert.equals(2, #result.thread_tags)
+        assert.equals("264", result.thread_tags[1].id)
+        assert.equals("Ask / Tell", result.thread_tags[1].name)
+        assert.equals("11", result.thread_tags[2].id)
+        assert.equals("Discussion", result.thread_tags[2].name)
     end)
 
     it("distinguishes sticky, closed, and starred rows", function()

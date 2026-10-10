@@ -13,13 +13,19 @@ local htmltext = require("saforums.htmltext")
 local threadlistparser = {}
 
 local function parse_row(row)
-    local thread = {}
+    local thread = { announcement = false }
 
     thread.id = row.id and row.id:match("%d+") or nil
 
     local title_cell = row:select("td.title")[1]
     local title_link = title_cell and title_cell:select("a.thread_title")[1]
-    thread.title = htmltext.text(title_link)
+    local announcement_link = title_cell and title_cell:select("a.announcement")[1]
+    if not title_link and announcement_link then
+        thread.announcement = true
+        thread.title = htmltext.text(announcement_link)
+    else
+        thread.title = htmltext.text(title_link)
+    end
     thread.sticky = htmltext.has_class(title_cell, "title_sticky")
 
     local author_link = row:select("td.author a")[1]
@@ -47,6 +53,15 @@ local function parse_row(row)
         thread.last_post_date = htmltext.text(lastpost:select("div.date")[1])
     end
 
+    -- Rating: the img's title reads "N votes, <m.mm> average" in some word
+    -- order; the numbers parse out regardless.
+    local rating_img = row:select("td.rating img")[1]
+    if rating_img then
+        local title = htmltext.decode_entities(rating_img.attributes.title or "")
+        thread.rating_votes = tonumber(((title:match("(%d[%d,]*)%s*votes") or ""):gsub(",", "")))
+        thread.rating_average = tonumber(title:match("(%d+%.%d+)"))
+    end
+
     thread.star = tonumber(htmltext.class_match(row:select("td.star")[1], "^bm(%d)$"))
 
     local icon_img = row:select("td.icon img")[1]
@@ -61,15 +76,37 @@ local function parse_row(row)
     return thread
 end
 
---- Parse a thread list page into { threads, pagination, forum_id, can_post }.
---- Unread counts include the original post, per the site's own convention;
---- replies do not.
+--- Parse a thread list page into { threads, announcements, thread_tags,
+--- pagination, forum_id, can_post }. Announcement rows land separately from
+--- threads (spec: HTML structure contract). Unread counts include the
+--- original post, per the site's own convention; replies do not.
 function threadlistparser.parse(html)
     local root = htmlparser.parse(html, 200000)
-    local result = { threads = {} }
+    local result = { threads = {}, announcements = {} }
 
     for _, row in ipairs(root:select("tr.thread")) do
-        result.threads[#result.threads + 1] = parse_row(row)
+        local parsed = parse_row(row)
+        if parsed.announcement then
+            result.announcements[#result.announcements + 1] = parsed
+        else
+            result.threads[#result.threads + 1] = parsed
+        end
+    end
+
+    local tags_block = root:select("div.thread_tags")[1]
+    if tags_block then
+        result.thread_tags = {}
+        for _, link in ipairs(tags_block:select("a[href*='posticon']")) do
+            local name = htmltext.text(link)
+            local img = link:select("img")[1]
+            if (not name or name == "") and img then
+                name = htmltext.decode_entities(img.attributes.alt or "")
+            end
+            result.thread_tags[#result.thread_tags + 1] = {
+                id = htmltext.query_param(link.attributes.href, "posticon"),
+                name = name,
+            }
+        end
     end
 
     local pages = root:select("div.pages")[1]
