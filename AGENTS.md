@@ -135,7 +135,8 @@ view on synthetic fixture content without a session (delete whenever).
   from the repo root. Fixtures under `spec/fixtures/` (synthetic only);
   stubs in `spec/stubs.lua`; the pinned htmlparser is under
   `spec/vendor/htmlparser/`.
-- **Emulator iteration (primary dev loop):**
+- **Emulator iteration (primary dev loop, and per Brandon's directive the
+  only test surface):**
   ```
   cd ~/.local/share/koreader-dev && ./kodev run
   ```
@@ -144,6 +145,9 @@ view on synthetic fixture content without a session (delete whenever).
   and thread fetching work. First build took ~15 min; subsequent builds
   are cached. The dev checkout is 2.6 GB at `~/.local/share/koreader-dev`
   (separate from the read-only reference clone at `~/.gitrepos/koreader`).
+  All iteration and verification happens here; device (Kindle) passes are
+  Brandon's own, on his initiative, once he is happy with the emulator
+  state. Do not rsync to /mnt/Kindle or plan device passes into the work.
 - Deploy for a Kindle device pass: rsync to
   `/mnt/Kindle/koreader/plugins/saforums.koplugin/` (vfat over sshfs, with
   the excludes from the command in .gitignore comments), restart KOReader,
