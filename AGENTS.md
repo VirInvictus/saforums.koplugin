@@ -14,7 +14,10 @@ Repo root is the plugin root: `main.lua` and `_meta.lua` install as
 - `PARITY.md` is the 1:1 Awful.app parity program (Brandon's directive). Wave A
   reading parity, Wave B lists/bookmarks, Wave C composition (gate open),
   Wave D gated surfaces. This supersedes the old deferred list.
-- `roadmap.md` remains the phase ledger for the core loop (Phases 0-6).
+- `roadmap.md` is the execution ledger: every open item carries its own
+  brief (goal, mined facts with citations into the Awful.app clone, files
+  to touch, tests, done-when). Start there for any Wave C/D or loose-end
+  item; re-verify cited line numbers only if the clone moved.
 
 ## Current state (updated 2026-10-09, late)
 
