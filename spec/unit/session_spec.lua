@@ -262,3 +262,18 @@ describe("cookie host scoping", function()
         assert.is_false(session.carries_cookies("https://notsomethingawful.com/x.png"))
     end)
 end)
+
+describe("per-request timeouts", function()
+    it("ride through to the transport for image fetches", function()
+        local seen
+        local s = session.new(function(request)
+            seen = request
+            return 200, {}, "img"
+        end)
+        local result = s:get("https://fi.somethingawful.com/avatars/1.png",
+            { raw = true, block_timeout = 5, total_timeout = 15 })
+        assert.equals("ok", result.kind)
+        assert.equals(5, seen.block_timeout)
+        assert.equals(15, seen.total_timeout)
+    end)
+end)

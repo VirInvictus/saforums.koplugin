@@ -48,7 +48,11 @@ local function default_transport(request)
     local https = require("ssl.https")
     local sink = {}
     build_https_request(request, sink)
-    socketutil:set_timeout(config.request_block_timeout, config.request_total_timeout)
+    -- Per-request ceilings when the caller provides them (image fetches run
+    -- tighter than page fetches); config's defaults otherwise.
+    socketutil:set_timeout(
+        request.block_timeout or config.request_block_timeout,
+        request.total_timeout or config.request_total_timeout)
     local ok, code_or_err, headers = https.request(request)
     socketutil:reset_timeout()
     if not ok then
@@ -169,6 +173,8 @@ function Session:request(method, url, fields, opts)
             url = url,
             headers = headers_map,
             body = body,
+            block_timeout = opts.block_timeout,
+            total_timeout = opts.total_timeout,
         })
 
         if code == nil then

@@ -1076,7 +1076,8 @@ function SaforumsUI:open_thread(thread, opts)
         local seen_poster = {}
         for _idx, post in ipairs(parsed.posts) do
             local uid = post.author_id
-            if uid and post.avatar_src and not seen_poster[uid] then
+            if uid and post.avatar_src and not seen_poster[uid]
+                and avatar_cache.is_avatar_candidate(post.avatar_src) then
                 seen_poster[uid] = true
                 pending[#pending + 1] = { uid = uid, src = post.avatar_src }
             end
@@ -1100,7 +1101,7 @@ function SaforumsUI:open_thread(thread, opts)
                 if cached then
                     avatars[item.uid] = cached
                 end
-                UIManager:scheduleIn(0.05, function()
+                UIManager:scheduleIn(0.25, function()
                     fetch_step(i + 1)
                 end)
             end

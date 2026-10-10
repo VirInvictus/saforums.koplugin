@@ -33,6 +33,11 @@ local config = {
     request_block_timeout = 10,
     request_total_timeout = 30,
 
+    -- Image fetches (avatars, tap-to-view) get their own, tighter ceilings:
+    -- a slow image host must not stall the reading view for long.
+    image_block_timeout = 5,
+    image_total_timeout = 15,
+
     -- List cache TTLs (spec: Semantics > Politeness), seconds: forum lists
     -- 15 min, bookmarks 10 min, forums index 6 h, announcement bodies 20 h.
     cache_ttl_forum_list = 15 * 60,

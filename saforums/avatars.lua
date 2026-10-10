@@ -14,6 +14,8 @@ A failed or missing avatar is cosmetic: the post renders without one.
 local lfs = require("libs/libkoreader-lfs")
 local logger = require("logger")
 
+local config = require("saforums.config")
+
 local avatars = {}
 
 local MIME_BY_EXT = {
@@ -29,6 +31,16 @@ function avatars.mime_for(src)
     local ext = path:match("%.(%w+)$") or "png"
     ext = ext:lower()
     return MIME_BY_EXT[ext] or "image/png", ext
+end
+
+--- Custom-title art and post icons live in the same userinfo sidebar as
+--- avatars but are decoration, not faces: fetching them as 40px avatars
+--- wastes the fetch budget of the pass on every title-heavy page.
+function avatars.is_avatar_candidate(src)
+    if not src then return false end
+    if src:find("/customtitles/", 1, true) then return false end
+    if src:find("/posticons/", 1, true) then return false end
+    return true
 end
 
 --- Returns the local cache path for a user id, fetching and storing on a
@@ -51,7 +63,11 @@ function avatars.ensure(cache_dir, session, userid, src)
         return cached_path
     end
 
-    local result = session:get(src, { raw = true })
+    local result = session:get(src, {
+        raw = true,
+        block_timeout = config.image_block_timeout,
+        total_timeout = config.image_total_timeout,
+    })
     if result.kind ~= "ok" or not result.body or #result.body == 0 then
         logger.warn("saforums: avatar fetch failed for user", userid, "from", src,
             "->", result.kind)
