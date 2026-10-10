@@ -105,7 +105,7 @@ describe("epubbuilder", function()
         it("replaces images with bracketed placeholders", function()
             local out = epubbuilder.sanitize_body(
                 'before<img src="https://i.fixture.invalid/photos/xyz.png" alt="a chart">after')
-            assert.equals('before<span class="imgref">[image: a chart]</span>after', out)
+            assert.equals('before<span class="imgref" src="https://i.fixture.invalid/photos/xyz.png">[image: a chart]</span>after', out)
         end)
 
         it("falls back to the filename when there is no alt", function()

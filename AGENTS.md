@@ -16,15 +16,40 @@ Repo root is the plugin root: `main.lua` and `_meta.lua` install as
   Wave D gated surfaces. This supersedes the old deferred list.
 - `roadmap.md` remains the phase ledger for the core loop (Phases 0-6).
 
-## Current state (updated 2026-10-09)
+## Current state (updated 2026-10-09, late)
 
-v0.3.0 released. The full lurker loop works in the kodev emulator: login,
-forum index, bookmark shelf with unread counts, continue-at-unread via
-goto=newpost, threads rendering as bordered post cards with avatars,
-scrolling via ScrollableContainer with show_parent properly set, page
-navigation with a native selector bar. 145 tests green. v0.3.0 tagged and
-released on GitHub with zip asset; CI runs busted on every push and builds
-the release zip on every tag.
+v0.3.0 released; v0.3.0 tagged on GitHub with zip asset; CI runs busted on
+every push and builds the release zip on every `v*` tag.
+
+**Wave A of PARITY.md is implemented on main** (reading parity): token
+retune to the reference's colors, quote collapse at 3 lines, spoiler cards
+with per-post tap-to-reveal, mark-read-to-here (setseen POST + live
+re-tint), hold-for-post-menu (copy URL / copy text / mark read), role
+badges ([admin]/[mod]/[PT]) with per-forum regdate suppression
+(26/154/196/268), mention + quoted-you markers, image blocks with
+tap-to-view + dead-image message, jump-to-page on the page label,
+tweet/bsky/video/linked-image placeholders, smilies as typed codes, and the
+centered end marker. 185 tests green. Device-verified in the kodev emulator
+on a live thread (spoiler toggle, badges, end marker, page label); quote
+collapse, hold menu, jump dialog, and the image viewer have unit coverage
+but no device pass yet.
+
+Three hardening bugs Wave A surfaced, all fixed: the native view never ran
+sanitize_body before postblocks (raw HTML meant `<br>` never split
+paragraphs, images vanished, spoilers stayed unmasked; the view and
+post_plain_text now sanitize first); TextBoxWidget fills its own buffer
+with a white bgcolor default, which painted over the spoiler card's black
+and the seen tint (every card text widget now carries the card's bgcolor);
+and session cookies rode on every request host (the cookie header is now
+scoped to *.somethingawful.com, sealing a leak to third-party image CDNs).
+
+Interaction plumbing worth knowing: the ScrollableContainer ignores hold
+events (they belong to the post menu); ThreadView handles Hold itself by
+hit-testing card rects recorded at build time, and taps reach TapArea
+widgets (a local InputContainer subclass) inside the scrolled content
+because tap is the one gesture the scroll container does not claim. A
+throwaway `saforums-devview.koplugin` in the emulator checkout renders the
+view on synthetic fixture content without a session (delete whenever).
 
 ## Hard-won lessons (each cost a debugging round — do not re-learn)
 

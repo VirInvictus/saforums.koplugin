@@ -57,6 +57,21 @@ local function default_transport(request)
     return code_or_err, headers, table.concat(sink)
 end
 
+--- Host of a URL, nil when it has none.
+local function host_of(url)
+    return url:match("^https?://([^/:]+)")
+end
+
+--- Session cookies ride only on the site's own hosts (config's suffix):
+--- the view fetches images from third-party CDNs, and those requests must
+--- never carry credentials.
+local function carries_cookies(url)
+    local host = host_of(url)
+    if not host then return false end
+    local suffix = config.cookie_host_suffix:gsub("%.", "%%.")
+    return host == config.cookie_host_suffix or host:match("%." .. suffix .. "$") ~= nil
+end
+
 --- Build a multipart/form-data body with 1252-encoded field values.
 local function multipart_body(fields)
     local parts = {}
@@ -137,8 +152,10 @@ function Session:request(method, url, fields, opts)
     for _ = 1, 5 do
         local headers_map = {
             ["user-agent"] = config.user_agent(),
-            ["cookie"] = self.jar:header(),
         }
+        if carries_cookies(url) then
+            headers_map["cookie"] = self.jar:header()
+        end
         if body then
             headers_map["content-type"] = "multipart/form-data; boundary=" .. BOUNDARY
         end
@@ -251,5 +268,7 @@ session.resolve_url = resolve_url
 session.restore_perpage = restore_perpage
 session.build_https_request = build_https_request
 session.default_transport = default_transport
+session.host_of = host_of
+session.carries_cookies = carries_cookies
 
 return session

@@ -116,14 +116,15 @@ All relative to `https://forums.somethingawful.com/`.
 | Thread pages | `GET showthread.php?threadid=N&perpage=40` with optional `goto=newpost`, `noseen=1`, `pagenumber=K` |
 | Mark seen to index | `POST showthread.php` (`action=setseen`, `threadid`, `index`) |
 | Mark unread | `POST showthread.php` (`threadid`, `action=resetseen`, `json=1`) |
-| Reply form / quote | `GET newreply.php?action=newreply&threadid=N[, postid=M for quote]` (Phase 6) |
+| Reply form / quote | `GET newreply.php?action=newreply&threadid=N[, postid=M for quote]` (the postid quote fetch is live since v0.4.0 for copy-post-BBcode; the form mirror and submission stay Phase 6) |
 | Reply submission | `POST newreply.php` (scraped form fields incl. hidden keys, one-shot, Phase 6) |
 
 Out of scope (do not send): `newthread.php`, `editpost.php`, `private.php`,
 `query.php` (search is Platinum-gated), `member2.php`, `banlist.php`,
 `poll.php`, `dictionary.php`, `announcement.php`, archives endpoints.
-`newreply.php` joins the live set only when Phase 6 opens, under the Composition
-rules.
+`newreply.php` joined the live set in v0.4.0 for one read-only use, the
+quote fetch behind copy-post-BBcode (a GET that submits nothing); its form
+mirror and submission path open with Phase 6, under the Composition rules.
 
 ## HTML structure contract
 
@@ -192,12 +193,35 @@ re-render.
   text (TextBoxWidget's only inline marker is bold); quotes nest flat; scroll
   position is not yet persisted across page changes.
 - The design is a grayscale port of Awful.app's posts-view theme (the reference
-  clone's `posts-view.less` + `_base.less`): white post cards with hairline
-  top/bottom borders, seen posts tinted light gray so white means new-since-last-read,
-  avatar beside an inline name-and-date block (username 1.1em bold, custom title,
-  date and post number at 0.8em in muted ink, regdate), OP badge, blockquotes with
-  muted headers, and a 3em end-of-thread line carrying the frog. Body text renders
-  dense (font size 14 scaled units, becoming a setting).
+  clone's `posts-view.less` + `_base.less`), token-tuned to the reference's
+  values: page background near-white gray (#f4f3f3 flattened), white post cards
+  with hairline `#ddd` rules, seen posts tinted light (the reference's blue
+  `#e6eff8` flattened to its luminance) so bright means new-since-last-read,
+  meta text at 30% black, quote bars `#999` with `#555` headers, avatar beside
+  an inline name-and-date block (username 1.1em bold with `[admin]`/`[mod]`/
+  `[PT]`/`[OP]` text badges parsed from the author class list, custom title,
+  date and post number at 0.8em in muted ink), and a centered, spaced
+  end-of-thread line carrying the frog. Body text renders dense (font size 14
+  scaled units, becoming a setting). Registration dates are hidden in the
+  forums whose tweaks hide them there (FYAD 26, 154, 196, BYOB 268); YOSPOS
+  (219) keeps its regdate despite the folklore.
+- Long quotes (more than 3 lines, the reference client's
+  QUOTE_COLLAPSED_LINES) render 3 lines plus a "+N lines" control; tapping
+  expands, tapping "less" collapses again. Spoiler blocks render as inverted
+  (white-on-black) cards, masked until tapped; the tap toggles every spoiler
+  in that post (per-spoiler hit-testing comes later). Image blocks carry the
+  image URL and open it in the image viewer when tapped; a dead fetch answers
+  with "[dead image: name]". Tweet, bluesky, video, and linked-image bare
+  links render as labeled placeholders in meta gray (smilies collapse to
+  their typed codes). Occurrences of the logged-in username in bodies render
+  bold, and quote headers citing the user carry a bold "(you)" tag; both are
+  inert presentation. Holding a post opens its action menu (copy post URL,
+  copy post text, mark read to here); the permalink follows the reference
+  client's format (`showthread.php?threadid=N&perpage=40&noseen=1[&pagenumber=N]#post<id>`)
+  and mark-read-to-here POSTs `action=setseen` with that post's index, then
+  re-tints the card list locally. The menu also offers the post's BBcode,
+  fetched read-only from the site's own quote form. The page selector's
+  label doubles as a jump-to-page input.
 - Post layout follows the Typography section: bordered post cards, avatar beside
   the bold author, custom title and gray meta line, left-aligned text. Avatars
   embed as data URIs; if the device renders them as broken boxes, a one-line

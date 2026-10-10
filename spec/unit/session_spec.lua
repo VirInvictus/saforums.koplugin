@@ -235,3 +235,30 @@ describe("goto=newpost jump targets", function()
         assert.is_nil(s:get("https://f.invalid/t").jump_index)
     end)
 end)
+
+describe("cookie host scoping", function()
+    it("rides only on the site's own hosts, never third-party ones", function()
+        local transport = fake_transport({
+            { code = 200, headers = {}, body = "ok" },
+            { code = 200, headers = {}, body = "ok" },
+        })
+        local s = session.new(transport.request)
+        s.jar:load({
+            bbuserid = { value = "123", path = "/" },
+            bbpassword = { value = "fixture-value", path = "/" },
+        })
+
+        s:get("https://img.thirdparty.invalid/pic.png")
+        assert.is_nil(transport.requests[1].headers.cookie)
+
+        s:get("https://fi.somethingawful.com/avatars/1.png")
+        assert.matches("bbuserid=123", transport.requests[2].headers.cookie)
+    end)
+
+    it("classifies hosts by the site suffix", function()
+        assert.is_truthy(session.carries_cookies(config.base_url .. "/index.php"))
+        assert.is_truthy(session.carries_cookies("https://fi.somethingawful.com/x.png"))
+        assert.is_false(session.carries_cookies("https://imgur.invalid/x.png"))
+        assert.is_false(session.carries_cookies("https://notsomethingawful.com/x.png"))
+    end)
+end)

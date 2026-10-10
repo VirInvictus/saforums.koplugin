@@ -12,6 +12,20 @@ local config = {
     session_user_cookie = "bbuserid",
     session_password_cookie = "bbpassword",
 
+    -- Session cookies ride only on this organization's hosts; third-party
+    -- image hosts never see them.
+    cookie_host_suffix = "somethingawful.com",
+
+    -- Forums whose tweaks hide the registration date (the reference
+    -- client's ForumTweaks: FYAD 26, 154, 196, BYOB 268; YOSPOS 219 keeps
+    -- its regdate despite the folklore).
+    hide_regdate_forums = {
+        ["26"] = true,
+        ["154"] = true,
+        ["196"] = true,
+        ["268"] = true,
+    },
+
     -- Honest UA per spec: no browser impersonation.
     user_agent_fmt = "saforums.koplugin/%s (KOReader)",
 

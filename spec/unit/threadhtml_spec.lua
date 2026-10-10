@@ -62,7 +62,10 @@ describe("threadhtml", function()
 
     it("sanitizes bodies through the shared pipeline", function()
         local html = threadhtml.render(doc)
-        assert.matches('<span class="imgref">[image: ', html, 1, true)
+        -- imgref spans carry their source URL since the tap-to-view wave;
+        -- the dormant EPUB path styles the span and ignores the attribute.
+        assert.matches('<span class="imgref" src=', html, 1, true)
+        assert.matches('[image: an image]', html, 1, true)
         assert.matches("%[spoiler%] a hidden spoiler text %[/spoiler%]", html)
         assert.matches("<br/>", html)
         assert.is_nil(html:find("<script"))

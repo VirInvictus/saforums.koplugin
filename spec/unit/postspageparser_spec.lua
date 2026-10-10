@@ -46,6 +46,13 @@ describe("postspageparser", function()
         assert.is_true(result.posts[3].author_is_op)
     end)
 
+    it("reads author roles from the class list", function()
+        assert.is_true(result.posts[2].author_is_mod)
+        assert.is_true(result.posts[2].author_is_platinum)
+        assert.is_false(result.posts[2].author_is_admin)
+        assert.is_false(result.posts[1].author_is_mod)
+    end)
+
     it("records seen state per post", function()
         assert.is_true(result.posts[1].seen)
         assert.is_true(result.posts[2].seen)

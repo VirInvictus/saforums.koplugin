@@ -27,6 +27,11 @@ local function parse_post(table_node)
     local author = table_node:select("dt.author")[1]
     post.author_name = htmltext.text(author)
     post.author_is_op = htmltext.has_class(author, "op")
+    -- Role badges come from the author's class list; the site's own class
+    -- names are role-mod / role-admin, platinum is a bare class.
+    post.author_is_mod = htmltext.has_class(author, "role-mod")
+    post.author_is_admin = htmltext.has_class(author, "role-admin")
+    post.author_is_platinum = htmltext.has_class(author, "platinum")
 
     -- Custom title: raw HTML (avatars commonly live inside it) plus clean
     -- text for display.

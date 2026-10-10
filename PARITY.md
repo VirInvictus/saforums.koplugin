@@ -33,7 +33,9 @@ WidgetKit (does not exist in Awful either).
 4. Mark-read-to-here: local setseen write + live re-tint of the card list.
 5. Post action menu: copy post URL, copy post text, mark-read-to-here.
 6. Role and badge markers: parse dt.author role classes; render [mod]/[admin]/
-   [PT] text tags; regdate suppression per forum (YOSPOS rule).
+   [PT] text tags; regdate suppression per forum (the reference client's
+   ForumTweaks list: 26, 154, 196, 268; YOSPOS 219 keeps its regdate, the
+   YOSPOS rule was folklore).
 7. Mention + quoted-you highlighting: own username bold in bodies; quote
    headers marked when they cite you.
 8. Image blocks carry URL; tap to fetch and view; dead fetch shows

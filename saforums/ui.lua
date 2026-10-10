@@ -10,6 +10,7 @@ marks anything read.
 
 local ConfirmBox = require("ui/widget/confirmbox")
 local DataStorage = require("datastorage")
+local Device = require("device")
 local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
 local LuaSettings = require("luasettings")
@@ -22,8 +23,10 @@ local logger = require("logger")
 local _ = require("gettext")
 
 local config = require("saforums.config")
+local htmltext = require("saforums.htmltext")
 local indexparser = require("saforums.indexparser")
 local json = require("saforums.json")
+local postblocks = require("saforums.postblocks")
 local postspageparser = require("saforums.postspageparser")
 local session_mod = require("saforums.session")
 local threadlistparser = require("saforums.threadlistparser")
@@ -32,6 +35,12 @@ local ui = {}
 
 local SaforumsUI = {}
 SaforumsUI.__index = SaforumsUI
+
+--- The plugin's directory under the device data dir (shelf, avatars,
+--- viewed images).
+local function data_dir()
+    return (DataStorage:getFullDataDir() or DataStorage:getDataDir()) .. "/saforums"
+end
 
 function ui.new()
     local self = setmetatable({}, SaforumsUI)
@@ -394,20 +403,34 @@ function SaforumsUI:open_thread(thread, opts)
             tostring(this_page), tostring(total_pages), #parsed.posts))
 
         local ThreadView = require("saforums.threadview")
-        local view = ThreadView:new{
+        local view
+        view = ThreadView:new{
             title = parsed.title or thread.title,
             posts = parsed.posts,
             avatars = {},
+            thread_id = thread_id,
+            forum_id = parsed.forum_id,
+            username = self:username(),
             page = this_page,
             total_pages = total_pages,
             jump_index = jump_index,
             on_close = function() end,
-            on_page_action = function(action)
-                local delta = action == "nextpage" and 1 or -1
-                local target = this_page + delta
-                if target >= 1 and target <= total_pages then
+            on_page_action = function(action, target)
+                if action == "jump" then
                     self:open_thread(thread, { page = target, mode = "browse" })
+                    return
                 end
+                local delta = action == "nextpage" and 1 or -1
+                local next_target = this_page + delta
+                if next_target >= 1 and next_target <= total_pages then
+                    self:open_thread(thread, { page = next_target, mode = "browse" })
+                end
+            end,
+            on_post_hold = function(post)
+                self:show_post_menu(view, post)
+            end,
+            on_image_tap = function(src, label)
+                self:open_image(src, label)
             end,
         }
         UIManager:show(view)
@@ -428,11 +451,11 @@ function SaforumsUI:open_thread(thread, opts)
             end
         end
         if #pending > 0 then
-            local data_dir = (DataStorage:getFullDataDir() or DataStorage:getDataDir()) .. "/saforums"
-            if not lfs.attributes(data_dir, "mode") then
-                lfs.mkdir(data_dir)
+            local dir = data_dir()
+            if not lfs.attributes(dir, "mode") then
+                lfs.mkdir(dir)
             end
-            local avatar_cache_dir = data_dir .. "/avatars"
+            local avatar_cache_dir = dir .. "/avatars"
             local avatars = {}
             local function fetch_step(i)
                 if view.discarded or i > #pending then
@@ -454,6 +477,196 @@ function SaforumsUI:open_thread(thread, opts)
                 fetch_step(1)
             end)
         end
+    end)
+end
+
+--- The logged-in user's name, when the plugin performed the login (cookie
+--- imports skip it; mentions simply go unmarked then).
+function SaforumsUI:username()
+    return self.settings:readSetting("saforums_username")
+end
+
+--- Permalink to one post (the reference client's format: noseen always,
+--- page only past the first, the post addressed by fragment).
+function ui.post_permalink(thread_id, page, post_id)
+    local url = config.base_url .. "/showthread.php?threadid=" .. thread_id
+        .. "&perpage=" .. config.perpage .. "&noseen=1"
+    if page and page > 1 then
+        url = url .. "&pagenumber=" .. page
+    end
+    return url .. "#post" .. post_id
+end
+
+function SaforumsUI:copy_text(text, toast_text)
+    local input = Device.input
+    if input and input.setClipboardText then
+        input.setClipboardText(text)
+        self:message(toast_text, 2)
+    else
+        self:message(_("This device has no clipboard."), 3)
+    end
+end
+
+--- The post's body as plain text, one block per line: paragraphs and
+--- spoilers as their text, quotes led by their header, images and embeds
+--- by their placeholder label. PTF/bold markers are presentation, not
+--- content, and come off.
+function SaforumsUI:post_plain_text(post)
+    local lines = {}
+    local sanitized = require("saforums.posthtml").sanitize_body(post.body_html)
+    for _idx, block in ipairs(postblocks.parse(sanitized)) do
+        local text = block.text or block.label or ""
+        text = text:gsub(postblocks.PTF_HEADER, "")
+        text = text:gsub(postblocks.BOLD_START, ""):gsub(postblocks.BOLD_END, "")
+        if block.type == "quote" and block.header then
+            lines[#lines + 1] = block.header
+        end
+        if text ~= "" then
+            lines[#lines + 1] = text
+        end
+    end
+    return table.concat(lines, "\n")
+end
+
+--- Hold on a post: the lurker's per-post actions (spec: Read state makes
+--- the setseen write an explicit user action only).
+function SaforumsUI:show_post_menu(view, post)
+    local ButtonDialog = require("ui/widget/buttondialog")
+    local dialog
+    local buttons = {}
+
+    if post.id and view.thread_id then
+        buttons[#buttons + 1] = {
+            text = _("Copy post URL"),
+            callback = function()
+                UIManager:close(dialog)
+                self:copy_text(
+                    ui.post_permalink(view.thread_id, view.page, post.id),
+                    _("Link copied."))
+            end,
+        }
+        buttons[#buttons + 1] = {
+            text = _("Copy post BBcode"),
+            callback = function()
+                UIManager:close(dialog)
+                self:copy_post_bbcode(view, post)
+            end,
+        }
+    end
+    buttons[#buttons + 1] = {
+        text = _("Copy post text"),
+        callback = function()
+            UIManager:close(dialog)
+            self:copy_text(self:post_plain_text(post), _("Post text copied."))
+        end,
+    }
+    buttons[#buttons + 1] = {
+        text = _("Mark read to here"),
+        callback = function()
+            UIManager:close(dialog)
+            self:mark_read_to_here(view, post)
+        end,
+    }
+    buttons[#buttons + 1] = {
+        text = _("Close"),
+        callback = function()
+            UIManager:close(dialog)
+        end,
+    }
+
+    dialog = ButtonDialog:new{
+        buttons = { buttons },
+    }
+    UIManager:show(dialog)
+end
+
+--- The post's BBcode from the site's own quote form (the reference
+--- client's copy path): a read-only GET of newreply.php with the post id,
+--- whose vbform carries the quoted text in its message textarea.
+function SaforumsUI:copy_post_bbcode(view, post)
+    self:message(_("Fetching BBcode…"))
+    self:when_online(function()
+        local url = config.base_url .. "/newreply.php?action=newreply&postid=" .. post.id
+        local result = self.session:get(url)
+        if self:show_result_error(result) then return end
+        local quoted = (result.body or ""):match('<textarea[^>]*name="message"[^>]*>(.-)</textarea>')
+        if not quoted then
+            self:message(_("The quote form did not answer; nothing copied."), 4)
+            return
+        end
+        self:copy_text(htmltext.decode_entities(quoted), _("BBcode copied."))
+    end)
+end
+
+function SaforumsUI:mark_read_to_here(view, post)
+    self:when_online(function()
+        local result = self.session:request("POST", config.base_url .. "/showthread.php",
+            { action = "setseen", threadid = view.thread_id, index = post.index })
+        if result.kind == "ok" then
+            view:set_seen_up_to(post.index)
+            self:message(_("Marked read to post #") .. post.index .. ".", 2)
+        else
+            self:show_result_error(result)
+        end
+    end)
+end
+
+--- Cache a fetched image under the data dir, keyed by its URL. Returns the
+--- path, or nil when the disk refuses.
+function SaforumsUI:cache_image(src, bytes)
+    local dir = data_dir() .. "/images"
+    if not lfs.attributes(dir, "mode") then
+        local created = lfs.mkdir(dir)
+        if not created then
+            logger.warn("saforums: image cache dir unusable:", dir)
+            return nil
+        end
+    end
+    local stem = (src:gsub("[^%w]", "")):sub(1, 96)
+    local _, ext = require("saforums.avatars").mime_for(src)
+    local path = dir .. "/" .. stem .. "-" .. #src .. "." .. ext
+    if lfs.attributes(path, "mode") then
+        return path
+    end
+    local file = io.open(path, "wb")
+    if not file then
+        logger.warn("saforums: cannot write image cache:", path)
+        return nil
+    end
+    file:write(bytes)
+    file:close()
+    return path
+end
+
+--- Tap on an image block: fetch and show it full-screen; a dead fetch says
+--- so in the image's own words.
+function SaforumsUI:open_image(src, label)
+    self:message(_("Fetching image…"))
+    self:when_online(function()
+        local result = self.session:get(src, { raw = true })
+        if result.kind == "cloudflare" then
+            self:show_result_error(result)
+            return
+        end
+        if result.kind ~= "ok" or not result.body or #result.body == 0 then
+            UIManager:show(InfoMessage:new{
+                text = _("[dead image: ") .. (label or _("image")) .. "]",
+                timeout = 4,
+            })
+            return
+        end
+        local path = self:cache_image(src, result.body)
+        if not path then
+            self:message(_("Could not store the image."), 3)
+            return
+        end
+        local ImageViewer = require("ui/widget/imageviewer")
+        UIManager:show(ImageViewer:new{
+            file = path,
+            fullscreen = true,
+            with_title_bar = true,
+            title_text = label or _("image"),
+        })
     end)
 end
 
