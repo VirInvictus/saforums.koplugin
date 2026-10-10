@@ -49,9 +49,9 @@ thread, read it on e-ink with page turns; no request in the whole flow lacked
       tapping a bookmark is the continue action. Still open: add-bookmark from
       the thread view and star-color display.
 - [ ] Explicit mark-seen-to-index control.
-- [ ] Refresh throttling per spec (15 min per forum list; manual refresh bypass).
-      Deferred until thread lists are cached on device: a throttle with nothing
-      to reuse is theater.
+- [x] Refresh throttling per spec: lists render from the on-device cache while
+      fresh (15 min forum lists, 10 min bookmarks, 6 h index) and a stale list
+      refetches in the background; explicit refresh bypasses (2026-10-09, v0.5.0).
 - [ ] Voice pass on every string the loop touches (spec: Voice and humor): empty
       bookmark list, no-new-posts state, session expiry. Deadpan, membership
       vocabulary, no snark at the user.

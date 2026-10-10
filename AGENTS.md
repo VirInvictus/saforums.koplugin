@@ -18,8 +18,10 @@ Repo root is the plugin root: `main.lua` and `_meta.lua` install as
 
 ## Current state (updated 2026-10-09, late)
 
-v0.3.0 released; v0.3.0 tagged on GitHub with zip asset; CI runs busted on
-every push and builds the release zip on every `v*` tag.
+v0.5.0 released: Wave A (posts-view reading parity) and Wave B (lists and
+bookmarks parity) of PARITY.md are shipped; both waves emulator-verified.
+The ten hard-won lessons below predate them. Next: Wave C (composition,
+draft-file workflow first) and Wave D (gated surfaces).
 
 **Wave A of PARITY.md is implemented on main** (reading parity): token
 retune to the reference's colors, quote collapse at 3 lines, spoiler cards
@@ -188,7 +190,7 @@ code path. They exist so the feature can be revived without a rewrite.
 
 ## Version
 
-`VERSION` is the single source (currently 0.3.0). `_meta.lua` version and
+`VERSION` is the single source. `_meta.lua` version and
 `saforums/config.lua` version must match (test-pinned in meta_spec and
 cookiejar_spec). Release tags `vX.Y.Z` trigger CI to build and attach the
 zip. The App Store plugin manager regex-extracts `_meta.lua` version for
