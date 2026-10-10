@@ -1,5 +1,40 @@
 # patchnotes
 
+## v0.4.0
+
+Wave A of the parity program: the posts view reads like the reference
+client, in grayscale.
+
+- Design tokens retuned to the reference's posts-view palette: near-white
+  page, white cards, hairline #ddd rules, 30%-black meta ink, and a seen
+  tint flattened from the reference's blue to its luminance.
+- Quotes longer than three lines collapse to three plus a "+N lines"
+  control; tapping expands, tapping "less" collapses again.
+- Spoilers render as inverted white-on-black cards, masked until tapped;
+  a tap toggles every spoiler in that post.
+- Hold a post for its action menu: copy the permalink (the reference
+  client's format), copy the post's text or its BBcode (fetched from the
+  site's own quote form), or mark read to here (the setseen POST, with the
+  card list re-tinting in place).
+- Author badges parsed from the post's class list: [admin], [mod], [PT],
+  and [OP]; registration dates hidden in the forums whose tweaks hide them
+  there (FYAD 26, 154, 196, BYOB 268).
+- Your own username renders bold in post bodies, and quote headers citing
+  you carry a "(you)" tag.
+- Image blocks carry their URL: tap to fetch and view full-screen; a dead
+  fetch answers "[dead image: name]".
+- Tweet, bluesky, video, and linked-image bare links render as labeled
+  placeholders; smilies collapse to their typed codes.
+- The page selector's label is now the jump control: tap it, type a page.
+- End-of-thread marker polished: centered, spaced, and still exactly one
+  frog.
+- Hardening: post HTML is sanitized before block parsing (raw HTML meant
+  paragraph breaks vanished, images disappeared, spoilers stayed
+  unmasked); card text widgets carry the card's background (TextBoxWidget
+  fills its own buffer white by default, which ate the spoiler black and
+  the seen tint); and the session cookie header is scoped to the site's
+  own hosts so image fetches never carry credentials to third-party CDNs.
+
 ## v0.3.0
 
 The working lurker client: threads open, scroll, and render with avatars.
