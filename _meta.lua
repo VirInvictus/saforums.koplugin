@@ -6,7 +6,7 @@ local _ = require("gettext")
 
 return {
     name = "saforums",
-    version = "0.4.0",
+    version = "0.5.0",
     fullname = _("SA Forums"),
     description = _([[Read the Something Awful Forums on your e-reader. Lurker-first: forum index, thread lists with unread counts, and thread pages rendered as post cards.]]),
 }

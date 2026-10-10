@@ -1,5 +1,40 @@
 # patchnotes
 
+## v0.5.0
+
+Wave B of the parity program: the lists and the bookmark shelf catch up to
+the posts view.
+
+- Thread lists read like the reference client: page counts, replies,
+  ratings, "Killed by" last poster on threads you have read, "Posted by"
+  on ones you have not, sticky and closed markers, and the bookmark star
+  as a letter tag ([O] orange, [R] red, [Y] yellow, [C] cyan, [G] green,
+  [P] purple).
+- Hold any thread row for the full menu: open first or last page, continue
+  at the first unread post, copy the link or title, mark read (never-opened
+  threads only) or mark unread, set the star color, and add or remove the
+  bookmark.
+- Tapping a thread you have seen continues at the first unread post; a
+  never-opened thread opens on page 1 without touching your read state.
+  Backing out returns to the list exactly where you left it.
+- The bookmark shelf gains a persisted filter: all, unread, read, or a
+  single star color.
+- Per-forum tag filters: pick a tag once and the forum remembers it.
+- Site announcements appear on forum lists; tapping one fetches the body
+  (read-only) and renders it in the same post view. What you have read is
+  tracked on the device, by title.
+- The forums index gains a favorites section (pin any forum, reorder by
+  hold menu) and collapsible forum groups.
+- Jump to page on lists; pagination hides the older-page link when a page
+  comes back under 40 rows.
+- Polite list caching: forum lists 15 minutes, bookmarks 10, the forums
+  index 6 hours; a fresh list opens instantly with no request at all, a
+  stale one renders immediately and refreshes in the background, and an
+  explicit refresh always bypasses the cache.
+- Back-stack fix: screens now stack, so closing a thread reveals its list
+  rather than quitting the plugin; a background list refresh never swaps a
+  list out from under an open thread.
+
 ## v0.4.0
 
 Wave A of the parity program: the posts view reads like the reference
