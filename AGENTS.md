@@ -199,6 +199,16 @@ cookiejar_spec). Release tags `vX.Y.Z` trigger CI to build and attach the
 zip. The App Store plugin manager regex-extracts `_meta.lua` version for
 update detection.
 
+## Release flow
+
+Commit and push verified work (the standing push grant in the global
+file; force-pushes still need approval), wait for CI to go green, then
+tag: annotated `vX.Y.Z` at the release commit, message = the
+`patchnotes.md` entry verbatim (`--cleanup=verbatim`; the full tag
+procedure lives in `~/.zcode/AGENTS.md`). The tag triggers the zip build;
+verify the zip asset landed on the Release. Version carriers: `VERSION`,
+`_meta.lua`, and `saforums/config.lua`, test-pinned per above.
+
 ## References
 
 - `PARITY.md` — the 1:1 Awful.app program (Wave A-D)
