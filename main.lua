@@ -139,10 +139,11 @@ function Saforums:addToMainMenu(menu_items)
             },
             {
                 text = _("Fetch avatars over the network"),
-                -- Each avatar fetch is a blocking connection on the UI
-                -- thread; on e-ink devices that froze the reader for as
-                -- long as the fetches took (v0.5.1), so the pass reads the
-                -- device cache only unless this is on.
+                sub_text = _("Runs in the background between screen updates; the first fetch per site may pause briefly"),
+                -- Each fetch once ran as a blocking connection on the UI
+                -- thread and froze e-ink devices for as long as the pass
+                -- took (v0.5.1); fetching now happens off the reading path
+                -- (saforums/asyncimage.lua), and this toggle gates it.
                 checked_func = function()
                     local settings = saforums_settings()
                     return (settings:readSetting("saforums_fetch_avatars") or false) == true

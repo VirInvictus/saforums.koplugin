@@ -1066,20 +1066,18 @@ function SaforumsUI:open_thread(thread, opts)
         }
         UIManager:show(view)
 
-        -- Avatars are a second pass AFTER first paint, one scheduled step
-        -- per fetch, yielding to the event loop between each. No overlay,
-        -- no toast, nothing between the user and the posts. The view swaps
-        -- the avatars in with one repaint when the pass completes; closing
-        -- the view sets a flag that stops the pass.
-        --
-        -- v0.5.2: the pass is disk-only unless the menu toggle opts in.
-        -- Every network fetch is a blocking TLS connection on the UI
-        -- thread, which froze e-ink devices for the length of the pass
-        -- (a force reset on an Oasis); cached faces still appear, and the
-        -- disk pass runs at the next tick so they land immediately.
+        -- Avatars are a second pass AFTER first paint: one tick reads the
+        -- whole on-device cache (cached faces land immediately; v0.5.2 made
+        -- this the whole pass by default after blocking fetches froze
+        -- e-ink devices in v0.5.1). When the menu toggle opts in, the
+        -- cache misses then fetch in the background: non-blocking sockets
+        -- resumed between event-loop ticks (saforums/asyncimage.lua), with
+        -- the results swapped in as one repaint. Closing the view stops
+        -- the fetcher.
         local fetch_avatars = self.settings:readSetting("saforums_fetch_avatars") or false
         local avatar_cache = require("saforums.avatars")
         local pending = {}
+        local src_by_uid = {}
         local seen_poster = {}
         for _idx, post in ipairs(parsed.posts) do
             local uid = post.author_id
@@ -1087,6 +1085,7 @@ function SaforumsUI:open_thread(thread, opts)
                 and avatar_cache.is_avatar_candidate(post.avatar_src) then
                 seen_poster[uid] = true
                 pending[#pending + 1] = { uid = uid, src = post.avatar_src }
+                src_by_uid[uid] = post.avatar_src
             end
         end
         if #pending > 0 then
@@ -1095,26 +1094,50 @@ function SaforumsUI:open_thread(thread, opts)
                 lfs.mkdir(dir)
             end
             local avatar_cache_dir = dir .. "/avatars"
-            local avatars = {}
-            local function fetch_step(i)
-                if view.discarded or i > #pending then
-                    if next(avatars) then
-                        view:set_avatars(avatars)
-                    end
-                    return
-                end
-                local item = pending[i]
-                local cached = avatar_cache.ensure(avatar_cache_dir, self.session,
-                    item.uid, item.src, { fetch = fetch_avatars })
-                if cached then
-                    avatars[item.uid] = cached
-                end
-                UIManager:scheduleIn(0.25, function()
-                    fetch_step(i + 1)
-                end)
-            end
+            local faces = {}
             UIManager:nextTick(function()
-                fetch_step(1)
+                if view.discarded then return end
+                local misses = {}
+                for _idx, item in ipairs(pending) do
+                    local cached = avatar_cache.ensure(avatar_cache_dir, self.session,
+                        item.uid, item.src, { fetch = false })
+                    if cached then
+                        faces[item.uid] = cached
+                    else
+                        misses[#misses + 1] = item
+                    end
+                end
+                if next(faces) then
+                    view:set_avatars(faces)
+                end
+                if fetch_avatars and #misses > 0 then
+                    local asyncimage = require("saforums.asyncimage")
+                    asyncimage.new():start{
+                        tasks = misses,
+                        is_cancelled = function() return view.discarded end,
+                        on_complete = function(results)
+                            if view.discarded then return end
+                            for uid, body in pairs(results) do
+                                local path = avatar_cache.store(avatar_cache_dir,
+                                    uid, src_by_uid[uid], body)
+                                if path then
+                                    faces[uid] = path
+                                end
+                            end
+                            -- Swap faces only into the view the reader is
+                            -- actually looking at: page navigation stacks
+                            -- a newer view, and a full-screen repaint plus
+                            -- flash under it (or under a dialog) would be
+                            -- worse than a face arriving on the next open.
+                            -- The bytes are already cached either way.
+                            local stack = UIManager._window_stack
+                            if next(faces) and stack and stack[#stack]
+                                and stack[#stack].widget == view then
+                                view:set_avatars(faces)
+                            end
+                        end,
+                    }
+                end
             end)
         end
     end)

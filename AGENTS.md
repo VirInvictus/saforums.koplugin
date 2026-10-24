@@ -126,6 +126,19 @@ view on synthetic fixture content without a session (delete whenever).
     Screen.refresh* before requiring ui/uimanager and runs the cycle with
     the emulator's luajit against the real UIManager.
 
+12. **Never do blocking socket I/O on the UI thread.** KOReader is one
+    Lua state: a blocking TLS fetch freezes every input for its duration,
+    and DNS (glibc getaddrinfo) is not bounded by any LuaSocket timeout.
+    This froze the Oasis twice before v0.5.2 (lesson lived in
+    saforums/avatars.lua's history). Upstream ships a non-blocking
+    fetcher (frontend/httpasync.lua) but only AFTER the v2026.03 floor, so
+    the plugin vendors the primitives in saforums/asyncimage.lua
+    (attribution in its header) with a tick-driven scheduler between
+    UIManager:scheduleIn slices. The one accepted residual blocking call
+    is DNS, once per host per process - the page fetch has always had the
+    same exposure. Any new network feature must go through the async
+    fetcher or justify itself.
+
 ## Hard rules specific to this repo
 
 - **No real SA content in the repo.** Test fixtures are hand-authored HTML

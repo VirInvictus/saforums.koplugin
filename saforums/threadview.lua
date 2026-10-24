@@ -372,8 +372,9 @@ local function post_card(view, post_idx, post, inner_width, is_first)
     return VerticalGroup:new(card)
 end
 
--- Rebuilds the whole widget tree. Used for progressive avatar refresh;
--- scroll position resets (this runs once per thread, after first paint).
+-- Rebuilds the whole widget tree. Reached from the spoiler/quote/seen
+-- toggles, the progressive avatar refresh, and page churn; callers that
+-- must keep the reader's place go through refresh_preserving_scroll.
 function ThreadView:build()
     local screen_w = Screen:getWidth()
     local screen_h = Screen:getHeight()
@@ -541,11 +542,13 @@ function ThreadView:refresh_preserving_scroll()
     UIManager:setDirty(self, "full")
 end
 
--- Progressive avatar refresh: swap in fetched avatars and repaint.
+-- Progressive avatar refresh: swap in fetched avatars and repaint. The
+-- swap keeps the reader's place: a background fetch can land mid-read,
+-- and jumping back to the top to show a face would be worse than the face
+-- being late.
 function ThreadView:set_avatars(avatars)
     self.avatars = avatars
-    self[1] = self:build()
-    UIManager:setDirty(self, "full")
+    self:refresh_preserving_scroll()
 end
 
 function ThreadView:show_jump_dialog()

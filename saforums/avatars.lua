@@ -43,15 +43,9 @@ function avatars.is_avatar_candidate(src)
     return true
 end
 
---- Returns the local cache path for a user id, fetching and storing on a
---- cache miss. nil when there is nothing usable (no source, fetch failed).
---- opts.fetch == false: disk-only, never touch the network. That is the
---- v0.5.2 default: each fetch is a blocking TLS connection on the UI
---- thread, which froze e-ink devices for as long as the pass took.
-function avatars.ensure(cache_dir, session, userid, src, opts)
-    if not userid or not src then return nil end
+--- The cache dir, created on demand; nil when it cannot exist.
+local function ensure_dir(cache_dir)
     if not cache_dir then return nil end
-
     if not lfs.attributes(cache_dir, "mode") then
         local created = lfs.mkdir(cache_dir)
         if not created then
@@ -59,6 +53,17 @@ function avatars.ensure(cache_dir, session, userid, src, opts)
             return nil
         end
     end
+    return cache_dir
+end
+
+--- Returns the local cache path for a user id, fetching and storing on a
+--- cache miss. nil when there is nothing usable (no source, fetch failed).
+--- opts.fetch == false: disk-only, never touch the network. That is the
+--- v0.5.2 default: each fetch is a blocking TLS connection on the UI
+--- thread, which froze e-ink devices for as long as the pass took.
+function avatars.ensure(cache_dir, session, userid, src, opts)
+    if not userid or not src then return nil end
+    if not ensure_dir(cache_dir) then return nil end
 
     local _, ext = avatars.mime_for(src)
     local cached_path = cache_dir .. "/" .. userid .. "." .. ext
@@ -86,6 +91,25 @@ function avatars.ensure(cache_dir, session, userid, src, opts)
         return nil
     end
     file:write(result.body)
+    file:close()
+    return cached_path
+end
+
+--- Write already-fetched bytes under the user id (the background fetcher's
+--- store-through); returns the cache path or nil. Never touches a session.
+function avatars.store(cache_dir, userid, src, body)
+    if not userid or not src then return nil end
+    if not body or #body == 0 then return nil end
+    if not ensure_dir(cache_dir) then return nil end
+
+    local _, ext = avatars.mime_for(src)
+    local cached_path = cache_dir .. "/" .. userid .. "." .. ext
+    local file = io.open(cached_path, "wb")
+    if not file then
+        logger.warn("saforums: cannot write avatar cache:", cached_path)
+        return nil
+    end
+    file:write(body)
     file:close()
     return cached_path
 end

@@ -243,10 +243,12 @@ re-render.
   label doubles as a jump-to-page input.
 - Post layout follows the Typography section: bordered post cards, avatar beside
   the bold author, custom title and gray meta line, left-aligned text. Avatars
-  render from the on-device cache (one file per poster, reused forever); network
-  fetching is opt-in via the plugin menu and off by default, because each fetch
-  is a blocking connection on the UI thread (v0.5.2; background fetching is the
-  planned end state).
+  render from the on-device cache (one file per poster, reused forever); cache
+  misses fetch in the background through non-blocking sockets resumed between
+  event-loop ticks (saforums/asyncimage.lua - never a blocking receive on the
+  UI thread; one DNS resolution per host per session is the accepted residual,
+  the same exposure the page fetch has). Network fetching sits behind the
+  plugin menu's toggle; these requests never carry cookies.
 - Pages: multi-page threads navigate through a native page-selector bar at
   the bottom of the view (newer / page X of Y / older); page changes fetch
   with `noseen=1`. The 3em frog line shows only on the last page.

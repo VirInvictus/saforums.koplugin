@@ -407,8 +407,51 @@ describe("device UI (smoke)", function()
             handle:close()
             return { kind = "ok", code = 200, body = fixture }
         end
+        package.loaded["saforums.asyncimage"] = {
+            new = function() error("the fetcher must not start while fetching is off") end,
+        }
         instance:open_thread({ id = "4231003", title = "t" }, { page = 1, mode = "browse" })
+        package.loaded["saforums.asyncimage"] = nil
         assert.equals(0, avatar_urls)
+    end)
+
+    it("opting in starts the background fetcher with the cache misses", function()
+        -- v0.5.3 wiring: the toggle ON hands the misses to the async
+        -- fetcher (non-blocking, between ticks); the disk pass itself
+        -- still runs and never blocks.
+        local luasettings = package.loaded["luasettings"]
+        luasettings.__store["saforums_fetch_avatars"] = true
+        local started
+        package.loaded["saforums.asyncimage"] = {
+            new = function()
+                return {
+                    start = function(_, opts)
+                        started = opts
+                        opts.on_complete({})
+                    end,
+                }
+            end,
+        }
+        local instance = ui.new()
+        instance.session.get = function()
+            local handle = io.open("spec/fixtures/postspage.html", "r")
+            local fixture = handle:read("*a")
+            handle:close()
+            return { kind = "ok", code = 200, body = fixture }
+        end
+        instance:open_thread({ id = "4231003", title = "t" }, { page = 1, mode = "browse" })
+        package.loaded["saforums.asyncimage"] = nil
+        luasettings.__store["saforums_fetch_avatars"] = nil
+        assert.is_not_nil(started, "the background fetcher must start when opted in")
+        assert.is_function(started.on_complete)
+        assert.is_not_nil(started.tasks)
+        -- The cancel wiring must consult the view's actual lifetime: live
+        -- while open, cancelled once the reader backs out of the thread.
+        assert.is_false(started.is_cancelled())
+        local uimanager = package.loaded["ui/uimanager"]
+        local view = uimanager.calls[#uimanager.calls][2]
+        view:handleBack()
+        assert.is_true(started.is_cancelled())
     end)
 end)
 

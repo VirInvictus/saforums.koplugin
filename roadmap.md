@@ -74,20 +74,19 @@ Done-when: Brandon reads every string without wincing.
 Cut as the avatar pass + Kindle e-ink refresh fix batch (2358fd2, 322cf67).
 L1-L5 stay open for later releases.
 
-### L7. Background avatar fetching (the deep fix)
+### L7. Background avatar fetching (the deep fix) (IMPLEMENTED 2026-10-24; pending verification + default flip)
 The v0.5.1 device pass froze the Oasis: every uncached avatar was a
 blocking TLS connection on the UI thread (fresh handshake per image, and
 DNS hangs are not bounded by the socket ceilings). v0.5.2 made the pass
 disk-only by default (`saforums_fetch_avatars` setting, menu toggle).
-Goal: chunked async fetching between event-loop ticks (socket.select with
-short non-blocking reads, results applied per step; no blocking receive
-anywhere on the open path), then flip the default back to fetching.
-Files: `saforums/session.lua` (an async request path or a fetcher local
-to `saforums/avatars.lua`), `saforums/ui.lua` (the pass steps),
-`main.lua` (the toggle's default flip). Tests: transport-level chunk
-assembly, cancellation when the view closes mid-fetch, the timeout path.
-Done-when: an avatar-heavy cold thread in kodev never stalls input, and
-Brandon's device pass confirms the same.
+Implemented on main ahead of v0.5.3: `saforums/asyncimage.lua` vendors
+KOReader's httpasync non-blocking primitives (upstream ships them only
+after the v2026.03 floor) plus a tick-driven scheduler; the pass runs the
+disk scan at the next tick and hands the misses to the fetcher (2 in
+flight, 15s deadlines, cancel on view close, one final avatar swap that
+preserves scroll). Remaining before the box ticks: Brandon's kodev pass
+(input live during a cold avatar-heavy fetch), his Kindle pass, then the
+one-line default flip and the v0.5.3 cut.
 
 ## Dormant EPUB track (parked; moves only on a fresh decision)
 
