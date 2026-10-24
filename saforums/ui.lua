@@ -1067,14 +1067,14 @@ function SaforumsUI:open_thread(thread, opts)
         UIManager:show(view)
 
         -- Avatars are a second pass AFTER first paint: one tick reads the
-        -- whole on-device cache (cached faces land immediately; v0.5.2 made
-        -- this the whole pass by default after blocking fetches froze
-        -- e-ink devices in v0.5.1). When the menu toggle opts in, the
-        -- cache misses then fetch in the background: non-blocking sockets
-        -- resumed between event-loop ticks (saforums/asyncimage.lua), with
-        -- the results swapped in as one repaint. Closing the view stops
-        -- the fetcher.
-        local fetch_avatars = self.settings:readSetting("saforums_fetch_avatars") or false
+        -- whole on-device cache (cached faces land immediately). The cache
+        -- misses then fetch in the background: non-blocking sockets
+        -- resumed between event-loop ticks (saforums/asyncimage.lua),
+        -- with the results swapped in as one scroll-preserving repaint.
+        -- Nothing on this path blocks the UI thread (the v0.5.1 freeze
+        -- was blocking TLS per avatar); the menu toggle turns the network
+        -- half off. Closing the view stops the fetcher.
+        local fetch_avatars = self.settings:readSetting("saforums_fetch_avatars") ~= false
         local avatar_cache = require("saforums.avatars")
         local pending = {}
         local src_by_uid = {}

@@ -16,18 +16,18 @@ then the kodev emulator (the only test surface per AGENTS.md), then Brandon's
 own Kindle pass. Cited line numbers refer to the clone at its current HEAD
 and should be re-verified if the clone moves.
 
-## Current state (2026-10-24, evening)
+## Current state (2026-10-24, night)
 
-v0.5.1 froze Brandon's Oasis on thread open: the avatar pass (first device
-run in v0.5.1) fetches each uncached poster's avatar through a blocking
-TLS connection on the UI thread. v0.5.2 turns the pass disk-only by
-default (cached faces still render, at the next tick; a menu toggle
-restores fetching) with background fetching open as L7 below. Still in
-from earlier: the Kindle e-ink full-screen refresh fix (322cf67; a plain
-UIManager show enqueues no refresh, so the view and the list menus now
-claim one). The public e-reader-thread post is drafted and waiting on
-Brandon. After that: Wave C (composition), Wave D (gated surfaces), and
-the loose ends below.
+v0.5.3 is tagged and released: background avatar fetching (L7) with the
+default back ON - non-blocking sockets between event-loop ticks
+(saforums/asyncimage.lua, vendored httpasync primitives), nothing
+blocking on the reading path, truncation never caches, swaps preserve
+scroll and skip buried views. Brandon verifies on the released zip
+through the App Store update path. Before it: v0.5.2 (the disk-only
+stopgap after v0.5.1 froze the Oasis) and the Kindle e-ink full-screen
+refresh fix (322cf67). The public e-reader-thread post is drafted and
+waiting on Brandon. After that: Wave C (composition), Wave D (gated
+surfaces), and the loose ends below.
 
 ## Loose ends (small, active)
 
@@ -74,19 +74,19 @@ Done-when: Brandon reads every string without wincing.
 Cut as the avatar pass + Kindle e-ink refresh fix batch (2358fd2, 322cf67).
 L1-L5 stay open for later releases.
 
-### L7. Background avatar fetching (the deep fix) (IMPLEMENTED 2026-10-24; pending verification + default flip)
+### L7. Background avatar fetching (the deep fix) (DONE, 2026-10-24)
 The v0.5.1 device pass froze the Oasis: every uncached avatar was a
 blocking TLS connection on the UI thread (fresh handshake per image, and
 DNS hangs are not bounded by the socket ceilings). v0.5.2 made the pass
-disk-only by default (`saforums_fetch_avatars` setting, menu toggle).
-Implemented on main ahead of v0.5.3: `saforums/asyncimage.lua` vendors
-KOReader's httpasync non-blocking primitives (upstream ships them only
-after the v2026.03 floor) plus a tick-driven scheduler; the pass runs the
-disk scan at the next tick and hands the misses to the fetcher (2 in
-flight, 15s deadlines, cancel on view close, one final avatar swap that
-preserves scroll). Remaining before the box ticks: Brandon's kodev pass
-(input live during a cold avatar-heavy fetch), his Kindle pass, then the
-one-line default flip and the v0.5.3 cut.
+disk-only by default as the stopgap. v0.5.3 ships the end state:
+`saforums/asyncimage.lua` vendors KOReader's httpasync non-blocking
+primitives (upstream ships them only after the v2026.03 floor) with a
+tick-driven scheduler; the disk scan runs at the next tick, the misses
+fetch in the background (2 in flight, 15s deadlines, cancel on view
+close, truncation never caches), the swap preserves scroll and skips
+buried views, and the default is back ON with the menu toggle turning it
+off. Brandon verifies on the released zip through the App Store update
+path (his call: the release is the vehicle for the pass).
 
 ## Dormant EPUB track (parked; moves only on a fresh decision)
 
@@ -408,6 +408,9 @@ Goal: know what the account can do; fail loud.
       open for later batches).
 - [x] v0.5.2 release (avatar pass disk-only by default after the v0.5.1
       device freeze; L7 open for the async end state).
+- [x] v0.5.3 release (L7 background avatar fetching, default back ON;
+      verified by Brandon on the released zip via the App Store update
+      path).
 - [ ] Brandon's Kindle pass on the release zip (his initiative, his policy).
 - [ ] The e-reader-thread post (drafted; posted when he is satisfied).
 - [ ] On-device App Store cold-install check; Storefront at its next catalog

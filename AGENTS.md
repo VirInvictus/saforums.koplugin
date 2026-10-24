@@ -19,18 +19,18 @@ Repo root is the plugin root: `main.lua` and `_meta.lua` install as
   to touch, tests, done-when). Start there for any Wave C/D or loose-end
   item; re-verify cited line numbers only if the clone moved.
 
-## Current state (updated 2026-10-24, evening)
+## Current state (updated 2026-10-24, night)
 
-v0.5.2 released: emergency fix after v0.5.1 froze Brandon's Oasis on
-thread open. The avatar pass (first device run in v0.5.1) fetched each
-uncached poster's avatar as a blocking TLS connection on the UI thread;
-the pass is now disk-only by default (`saforums_fetch_avatars` setting,
-menu toggle to re-enable; background fetching is roadmap L7). Also in
-from v0.5.1: the gentler avatar pass knobs (2358fd2) and the Kindle e-ink
-full-screen refresh fix (322cf67, lesson 11 below). 213 busted tests
-green. Next: Brandon's Kindle pass on the v0.5.2 zip, the public
-e-reader-thread post, then Wave C (composition, draft-file workflow
-first) and Wave D (gated surfaces).
+v0.5.3 released: L7 background avatar fetching (saforums/asyncimage.lua,
+vendored httpasync non-blocking primitives + tick scheduler; lesson 12),
+default back ON, menu toggle turns it off. Nothing blocking on the
+reading path; truncation never caches; swaps preserve scroll and skip
+buried views. Brandon verifies on the released zip through the App Store
+update path. Earlier tonight: v0.5.2 (the disk-only stopgap after v0.5.1
+froze the Oasis) and the Kindle e-ink full-screen refresh fix (322cf67,
+lesson 11). 226 busted tests green. Next: the verdict from Brandon's
+device pass, the public e-reader-thread post, then Wave C (composition,
+draft-file workflow first) and Wave D (gated surfaces).
 
 **Wave A of PARITY.md is implemented on main** (reading parity): token
 retune to the reference's colors, quote collapse at 3 lines, spoiler cards

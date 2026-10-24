@@ -247,8 +247,8 @@ re-render.
   misses fetch in the background through non-blocking sockets resumed between
   event-loop ticks (saforums/asyncimage.lua - never a blocking receive on the
   UI thread; one DNS resolution per host per session is the accepted residual,
-  the same exposure the page fetch has). Network fetching sits behind the
-  plugin menu's toggle; these requests never carry cookies.
+  the same exposure the page fetch has). Background fetching is on by default;
+  the plugin menu's toggle turns it off; these requests never carry cookies.
 - Pages: multi-page threads navigate through a native page-selector bar at
   the bottom of the view (newer / page X of Y / older); page changes fetch
   with `noseen=1`. The 3em frog line shows only on the last page.

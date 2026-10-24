@@ -1,5 +1,25 @@
 # patchnotes
 
+## v0.5.3
+
+Avatars fetch in the background; nothing blocks the reader anymore.
+
+- Avatar fetching is back ON by default, through non-blocking sockets
+  resumed between screen updates instead of blocking connections on the
+  reading path (the v0.5.1 freeze on e-ink devices). Fetches run two at a
+  time with 15-second deadlines, stop the moment you close the thread,
+  and swap in as one repaint that keeps your place; cached faces still
+  appear instantly from the device before anything touches the network.
+- Truncated or unterminated downloads now fail instead of caching, so a
+  dropped connection cannot leave a poster with a permanently corrupt
+  face.
+- A background swap no longer repaints when you have already moved on to
+  another page or a dialog.
+- The plugin menu's "Fetch avatars over the network" toggle now turns
+  background fetching OFF; leave it on unless you prefer cached faces
+  only. The first fetch to each site may pause briefly while its name
+  resolves.
+
 ## v0.5.2
 
 One change over v0.5.1: the avatar pass can no longer freeze the reader.

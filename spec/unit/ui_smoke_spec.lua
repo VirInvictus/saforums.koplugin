@@ -363,10 +363,9 @@ describe("device UI (smoke)", function()
         dispatcher_stub.registerAction = function() end
     end)
 
-    it("the avatar network toggle defaults off and persists a flip", function()
-        -- v0.5.2 regression pin: the pass freezes e-ink devices when it
-        -- fetches, so the network half must stay opt-in through this
-        -- menu item.
+    it("the avatar network toggle defaults on and persists a flip", function()
+        -- v0.5.3: background fetching is non-blocking, so the network
+        -- half is on by default; the toggle turns it off.
         local luasettings = package.loaded["luasettings"]
         luasettings.__store["saforums_fetch_avatars"] = nil
         local plugin = require("main")
@@ -383,44 +382,20 @@ describe("device UI (smoke)", function()
             end
         end
         assert.is_not_nil(toggle, "menu carries the avatar toggle")
-        assert.is_false(toggle.checked_func())
-        toggle.callback()
         assert.is_true(toggle.checked_func())
         toggle.callback()
         assert.is_false(toggle.checked_func())
+        toggle.callback()
+        assert.is_true(toggle.checked_func())
         luasettings.__store["saforums_fetch_avatars"] = nil
     end)
 
-    it("the avatar pass stays off the network by default", function()
-        -- open_thread with the default settings must never reach the
-        -- session for an avatar (cached faces only, disk reads).
+    it("default on: misses go to the background fetcher, never the session", function()
+        -- v0.5.3: the network half defaults ON through the async
+        -- fetcher; the session itself must never fetch an avatar (that
+        -- was the v0.5.1 freeze path), and the disk pass runs first.
         local luasettings = package.loaded["luasettings"]
         luasettings.__store["saforums_fetch_avatars"] = nil
-        local instance = ui.new()
-        local avatar_urls = 0
-        instance.session.get = function(_, url)
-            if url:find("avatar", 1, true) or url:find("customtitles", 1, true) then
-                avatar_urls = avatar_urls + 1
-            end
-            local handle = io.open("spec/fixtures/postspage.html", "r")
-            local fixture = handle:read("*a")
-            handle:close()
-            return { kind = "ok", code = 200, body = fixture }
-        end
-        package.loaded["saforums.asyncimage"] = {
-            new = function() error("the fetcher must not start while fetching is off") end,
-        }
-        instance:open_thread({ id = "4231003", title = "t" }, { page = 1, mode = "browse" })
-        package.loaded["saforums.asyncimage"] = nil
-        assert.equals(0, avatar_urls)
-    end)
-
-    it("opting in starts the background fetcher with the cache misses", function()
-        -- v0.5.3 wiring: the toggle ON hands the misses to the async
-        -- fetcher (non-blocking, between ticks); the disk pass itself
-        -- still runs and never blocks.
-        local luasettings = package.loaded["luasettings"]
-        luasettings.__store["saforums_fetch_avatars"] = true
         local started
         package.loaded["saforums.asyncimage"] = {
             new = function()
@@ -433,7 +408,11 @@ describe("device UI (smoke)", function()
             end,
         }
         local instance = ui.new()
-        instance.session.get = function()
+        local avatar_urls = 0
+        instance.session.get = function(_, url)
+            if url:find("avatar", 1, true) or url:find("customtitles", 1, true) then
+                avatar_urls = avatar_urls + 1
+            end
             local handle = io.open("spec/fixtures/postspage.html", "r")
             local fixture = handle:read("*a")
             handle:close()
@@ -442,9 +421,10 @@ describe("device UI (smoke)", function()
         instance:open_thread({ id = "4231003", title = "t" }, { page = 1, mode = "browse" })
         package.loaded["saforums.asyncimage"] = nil
         luasettings.__store["saforums_fetch_avatars"] = nil
-        assert.is_not_nil(started, "the background fetcher must start when opted in")
+        assert.is_not_nil(started, "the background fetcher must start on the default settings")
         assert.is_function(started.on_complete)
         assert.is_not_nil(started.tasks)
+        assert.equals(0, avatar_urls, "avatars must never ride the blocking session")
         -- The cancel wiring must consult the view's actual lifetime: live
         -- while open, cancelled once the reader backs out of the thread.
         assert.is_false(started.is_cancelled())
@@ -452,6 +432,29 @@ describe("device UI (smoke)", function()
         local view = uimanager.calls[#uimanager.calls][2]
         view:handleBack()
         assert.is_true(started.is_cancelled())
+    end)
+
+    it("opting out keeps the pass disk-only and never starts the fetcher", function()
+        local luasettings = package.loaded["luasettings"]
+        luasettings.__store["saforums_fetch_avatars"] = false
+        package.loaded["saforums.asyncimage"] = {
+            new = function() error("the fetcher must not start while fetching is off") end,
+        }
+        local instance = ui.new()
+        local avatar_urls = 0
+        instance.session.get = function(_, url)
+            if url:find("avatar", 1, true) or url:find("customtitles", 1, true) then
+                avatar_urls = avatar_urls + 1
+            end
+            local handle = io.open("spec/fixtures/postspage.html", "r")
+            local fixture = handle:read("*a")
+            handle:close()
+            return { kind = "ok", code = 200, body = fixture }
+        end
+        instance:open_thread({ id = "4231003", title = "t" }, { page = 1, mode = "browse" })
+        package.loaded["saforums.asyncimage"] = nil
+        luasettings.__store["saforums_fetch_avatars"] = nil
+        assert.equals(0, avatar_urls)
     end)
 end)
 
