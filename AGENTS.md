@@ -19,18 +19,19 @@ Repo root is the plugin root: `main.lua` and `_meta.lua` install as
   to touch, tests, done-when). Start there for any Wave C/D or loose-end
   item; re-verify cited line numbers only if the clone moved.
 
-## Current state (updated 2026-10-24, night)
+## Current state (updated 2026-10-24, late night)
 
-v0.5.3 released: L7 background avatar fetching (saforums/asyncimage.lua,
-vendored httpasync non-blocking primitives + tick scheduler; lesson 12),
-default back ON, menu toggle turns it off. Nothing blocking on the
-reading path; truncation never caches; swaps preserve scroll and skip
-buried views. Brandon verifies on the released zip through the App Store
-update path. Earlier tonight: v0.5.2 (the disk-only stopgap after v0.5.1
-froze the Oasis) and the Kindle e-ink full-screen refresh fix (322cf67,
-lesson 11). 226 busted tests green. Next: the verdict from Brandon's
-device pass, the public e-reader-thread post, then Wave C (composition,
-draft-file workflow first) and Wave D (gated surfaces).
+v0.5.4 released: the one finding from Brandon's v0.5.3 device pass
+(App Store update, three on-device screenshots, background avatar
+fetching observed live, no freeze) - postblocks now anchors
+site-relative image srcs (attachment.php?attachmentid=N) to the site
+root, so tapping an attachment image no longer fails "invalid host
+'nil'". Also tonight: v0.5.3 (L7 background avatar fetching,
+saforums/asyncimage.lua, default ON; lessons 11-12), v0.5.2 (the
+disk-only stopgap after v0.5.1 froze the Oasis), and the Kindle e-ink
+full-screen refresh fix (322cf67). 227 busted tests green. Next: the
+public e-reader-thread post, then Wave C (composition, draft-file
+workflow first) and Wave D (gated surfaces).
 
 **Wave A of PARITY.md is implemented on main** (reading parity): token
 retune to the reference's colors, quote collapse at 3 lines, spoiler cards

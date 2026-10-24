@@ -16,18 +16,18 @@ then the kodev emulator (the only test surface per AGENTS.md), then Brandon's
 own Kindle pass. Cited line numbers refer to the clone at its current HEAD
 and should be re-verified if the clone moves.
 
-## Current state (2026-10-24, night)
+## Current state (2026-10-24, late night)
 
-v0.5.3 is tagged and released: background avatar fetching (L7) with the
-default back ON - non-blocking sockets between event-loop ticks
-(saforums/asyncimage.lua, vendored httpasync primitives), nothing
-blocking on the reading path, truncation never caches, swaps preserve
-scroll and skip buried views. Brandon verifies on the released zip
-through the App Store update path. Before it: v0.5.2 (the disk-only
-stopgap after v0.5.1 froze the Oasis) and the Kindle e-ink full-screen
-refresh fix (322cf67). The public e-reader-thread post is drafted and
-waiting on Brandon. After that: Wave C (composition), Wave D (gated
-surfaces), and the loose ends below.
+v0.5.3 passed Brandon's device review (App Store update; three on-device
+screenshots, background avatar fetching observed writing the cache while
+he read, no freeze). The pass's one finding - tapping an attachment
+image fails "invalid host 'nil'" because postblocks kept the relative
+img src verbatim - ships fixed as v0.5.4 (postblocks anchors relative
+image srcs to the site root; fixture-pinned). Before it: background
+avatar fetching (L7, default ON), the disk-only stopgap v0.5.2, and the
+Kindle e-ink full-screen refresh fix (322cf67). The public
+e-reader-thread post is drafted and waiting on Brandon. After that:
+Wave C (composition), Wave D (gated surfaces), and the loose ends below.
 
 ## Loose ends (small, active)
 
@@ -411,6 +411,8 @@ Goal: know what the account can do; fail loud.
 - [x] v0.5.3 release (L7 background avatar fetching, default back ON;
       verified by Brandon on the released zip via the App Store update
       path).
+- [x] v0.5.4 release (the device pass's one finding: attachment image
+      srcs resolve against the site root).
 - [ ] Brandon's Kindle pass on the release zip (his initiative, his policy).
 - [ ] The e-reader-thread post (drafted; posted when he is satisfied).
 - [ ] On-device App Store cold-install check; Storefront at its next catalog

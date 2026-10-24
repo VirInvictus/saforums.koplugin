@@ -55,6 +55,16 @@ describe("postblocks", function()
         assert.equals("https://img.fixture.invalid/pic.png", blocks[2].src)
     end)
 
+    it("anchors site-relative attachment srcs to the base URL", function()
+        -- Device finding 2026-10-24: attachment images carry a relative
+        -- src (attachment.php?attachmentid=N); the viewer fetches absolute
+        -- URLs, so an unresolved relative meant "invalid host 'nil'".
+        local blocks = postblocks.parse(
+            'x<span class="imgref" src="attachment.php?attachmentid=960256">[image: cat.jpg]</span>')
+        assert.equals("https://forums.somethingawful.com/attachment.php?attachmentid=960256",
+            blocks[2].src)
+    end)
+
     it("turns embed placeholders into embed blocks", function()
         local blocks = postblocks.parse(
             'word<span class="embedref">[tweet: @someone]</span>')

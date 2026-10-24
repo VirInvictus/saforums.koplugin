@@ -1,5 +1,15 @@
 # patchnotes
 
+## v0.5.4
+
+One fix from the first v0.5.3 device pass.
+
+- Tapping an attachment image no longer errors with "Network error:
+  invalid host 'nil'". Attachment images carry a site-relative address
+  (attachment.php?attachmentid=N); the viewer needs an absolute one, and
+  the fix anchors relative sources to the site root when a post is
+  parsed.
+
 ## v0.5.3
 
 Avatars fetch in the background; nothing blocks the reader anymore.

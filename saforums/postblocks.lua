@@ -19,6 +19,7 @@ quote's text (v1 limitation, like inline italics rendering plain).
 
 local htmltext = require("saforums.htmltext")
 local cp1252 = require("saforums.cp1252")
+local config = require("saforums.config")
 
 local postblocks = {}
 
@@ -280,6 +281,13 @@ function postblocks.parse(body_html, opts)
             if next_kind == "image" then
                 local open_tag = body_html:sub(next_block, open_end)
                 local src = open_tag:match('src="([^"]*)"')
+                -- Attachment images are site-relative
+                -- (attachment.php?attachmentid=N); the viewer fetches
+                -- absolute URLs, so anchor them here (device finding
+                -- 2026-10-24: "invalid host 'nil'").
+                if src and not src:match("^https?://") then
+                    src = config.base_url .. "/" .. src
+                end
                 local label = inline(inner)
                 if label ~= "" then
                     blocks[#blocks + 1] = { type = "image", label = label, src = src }
