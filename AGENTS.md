@@ -19,13 +19,18 @@ Repo root is the plugin root: `main.lua` and `_meta.lua` install as
   to touch, tests, done-when). Start there for any Wave C/D or loose-end
   item; re-verify cited line numbers only if the clone moved.
 
-## Current state (updated 2026-10-24)
+## Current state (updated 2026-10-24, evening)
 
-v0.5.1 released: batches the gentler avatar pass (2358fd2) and the Kindle
-e-ink full-screen refresh fix (322cf67, lesson 11 below) over v0.5.0's
-Waves A+B. 209 busted tests green. Next: Brandon's Kindle pass on the
-v0.5.1 zip, the public e-reader-thread post, then Wave C (composition,
-draft-file workflow first) and Wave D (gated surfaces).
+v0.5.2 released: emergency fix after v0.5.1 froze Brandon's Oasis on
+thread open. The avatar pass (first device run in v0.5.1) fetched each
+uncached poster's avatar as a blocking TLS connection on the UI thread;
+the pass is now disk-only by default (`saforums_fetch_avatars` setting,
+menu toggle to re-enable; background fetching is roadmap L7). Also in
+from v0.5.1: the gentler avatar pass knobs (2358fd2) and the Kindle e-ink
+full-screen refresh fix (322cf67, lesson 11 below). 213 busted tests
+green. Next: Brandon's Kindle pass on the v0.5.2 zip, the public
+e-reader-thread post, then Wave C (composition, draft-file workflow
+first) and Wave D (gated surfaces).
 
 **Wave A of PARITY.md is implemented on main** (reading parity): token
 retune to the reference's colors, quote collapse at 3 lines, spoiler cards

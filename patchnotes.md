@@ -1,5 +1,18 @@
 # patchnotes
 
+## v0.5.2
+
+One change over v0.5.1: the avatar pass can no longer freeze the reader.
+
+- Avatar fetching is off by default. The v0.5.1 pass fetched every
+  uncached poster's avatar through blocking connections on the UI thread,
+  which on e-ink devices froze the reader for as long as the fetches took.
+  The pass now reads the on-device cache only: faces you have already
+  fetched still appear, immediately, and nothing touches the network on
+  open. A "Fetch avatars over the network" toggle in the plugin menu
+  restores fetching for anyone who wants it; background fetching is the
+  planned end state.
+
 ## v0.5.1
 
 Two device fixes over v0.5.0; no new surfaces.

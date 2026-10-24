@@ -1066,11 +1066,18 @@ function SaforumsUI:open_thread(thread, opts)
         }
         UIManager:show(view)
 
-        -- Avatars are a second pass AFTER first paint: one scheduled step
+        -- Avatars are a second pass AFTER first paint, one scheduled step
         -- per fetch, yielding to the event loop between each. No overlay,
         -- no toast, nothing between the user and the posts. The view swaps
         -- the avatars in with one repaint when the pass completes; closing
         -- the view sets a flag that stops the pass.
+        --
+        -- v0.5.2: the pass is disk-only unless the menu toggle opts in.
+        -- Every network fetch is a blocking TLS connection on the UI
+        -- thread, which froze e-ink devices for the length of the pass
+        -- (a force reset on an Oasis); cached faces still appear, and the
+        -- disk pass runs at the next tick so they land immediately.
+        local fetch_avatars = self.settings:readSetting("saforums_fetch_avatars") or false
         local avatar_cache = require("saforums.avatars")
         local pending = {}
         local seen_poster = {}
@@ -1097,7 +1104,8 @@ function SaforumsUI:open_thread(thread, opts)
                     return
                 end
                 local item = pending[i]
-                local cached = avatar_cache.ensure(avatar_cache_dir, self.session, item.uid, item.src)
+                local cached = avatar_cache.ensure(avatar_cache_dir, self.session,
+                    item.uid, item.src, { fetch = fetch_avatars })
                 if cached then
                     avatars[item.uid] = cached
                 end
@@ -1105,7 +1113,7 @@ function SaforumsUI:open_thread(thread, opts)
                     fetch_step(i + 1)
                 end)
             end
-            UIManager:scheduleIn(1.0, function()
+            UIManager:nextTick(function()
                 fetch_step(1)
             end)
         end

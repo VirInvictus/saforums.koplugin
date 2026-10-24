@@ -16,16 +16,18 @@ then the kodev emulator (the only test surface per AGENTS.md), then Brandon's
 own Kindle pass. Cited line numbers refer to the clone at its current HEAD
 and should be re-verified if the clone moves.
 
-## Current state (2026-10-24)
+## Current state (2026-10-24, evening)
 
-v0.5.1 is tagged and released: over v0.5.0 it carries the gentler avatar
-pass (2358fd2) and the Kindle e-ink full-screen refresh fix (322cf67; a
-plain UIManager show enqueues no refresh, so the view and the list menus
-now claim one - the emulator had been masking it by redrawing the whole
-framebuffer per refresh, and the avatar pass's "full" had been healing it
-there). The public e-reader-thread post is drafted and waiting on Brandon.
-After that: Wave C (composition), Wave D (gated surfaces), and the loose
-ends below.
+v0.5.1 froze Brandon's Oasis on thread open: the avatar pass (first device
+run in v0.5.1) fetches each uncached poster's avatar through a blocking
+TLS connection on the UI thread. v0.5.2 turns the pass disk-only by
+default (cached faces still render, at the next tick; a menu toggle
+restores fetching) with background fetching open as L7 below. Still in
+from earlier: the Kindle e-ink full-screen refresh fix (322cf67; a plain
+UIManager show enqueues no refresh, so the view and the list menus now
+claim one). The public e-reader-thread post is drafted and waiting on
+Brandon. After that: Wave C (composition), Wave D (gated surfaces), and
+the loose ends below.
 
 ## Loose ends (small, active)
 
@@ -71,6 +73,21 @@ Done-when: Brandon reads every string without wincing.
 ### L6. v0.5.1 (DONE, 2026-10-24)
 Cut as the avatar pass + Kindle e-ink refresh fix batch (2358fd2, 322cf67).
 L1-L5 stay open for later releases.
+
+### L7. Background avatar fetching (the deep fix)
+The v0.5.1 device pass froze the Oasis: every uncached avatar was a
+blocking TLS connection on the UI thread (fresh handshake per image, and
+DNS hangs are not bounded by the socket ceilings). v0.5.2 made the pass
+disk-only by default (`saforums_fetch_avatars` setting, menu toggle).
+Goal: chunked async fetching between event-loop ticks (socket.select with
+short non-blocking reads, results applied per step; no blocking receive
+anywhere on the open path), then flip the default back to fetching.
+Files: `saforums/session.lua` (an async request path or a fetcher local
+to `saforums/avatars.lua`), `saforums/ui.lua` (the pass steps),
+`main.lua` (the toggle's default flip). Tests: transport-level chunk
+assembly, cancellation when the view closes mid-fetch, the timeout path.
+Done-when: an avatar-heavy cold thread in kodev never stalls input, and
+Brandon's device pass confirms the same.
 
 ## Dormant EPUB track (parked; moves only on a fresh decision)
 
@@ -390,6 +407,8 @@ Goal: know what the account can do; fail loud.
 
 - [x] v0.5.1 release (avatar pass, Kindle e-ink refresh fix; L1-L5 stay
       open for later batches).
+- [x] v0.5.2 release (avatar pass disk-only by default after the v0.5.1
+      device freeze; L7 open for the async end state).
 - [ ] Brandon's Kindle pass on the release zip (his initiative, his policy).
 - [ ] The e-reader-thread post (drafted; posted when he is satisfied).
 - [ ] On-device App Store cold-install check; Storefront at its next catalog

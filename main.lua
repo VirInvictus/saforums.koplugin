@@ -11,13 +11,22 @@ a class made with WidgetContainer:extend, with registration work inside
 init(); a plain table fails to load with a nil-call error.
 --]]
 
+local DataStorage = require("datastorage")
 local Dispatcher = require("dispatcher")
 local InfoMessage = require("ui/widget/infomessage")
+local LuaSettings = require("luasettings")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
 
 local ui = require("saforums.ui")
+
+-- The plugin's settings file (the same store saforums/ui.lua reads): the
+-- menu below toggles a key the avatar pass consults on every thread open.
+local function saforums_settings()
+    return LuaSettings:open(
+        ("%s/%s"):format(DataStorage:getSettingsDir(), "saforums_settings.lua"))
+end
 
 -- Top-of-Tools placement, Storefront's mechanism: KOReader orders menu
 -- entries through these order tables, and entries missing from them land
@@ -127,6 +136,23 @@ function Saforums:addToMainMenu(menu_items)
             {
                 text = _("Clear session"),
                 callback = function() self:onClearSession() end,
+            },
+            {
+                text = _("Fetch avatars over the network"),
+                -- Each avatar fetch is a blocking connection on the UI
+                -- thread; on e-ink devices that froze the reader for as
+                -- long as the fetches took (v0.5.1), so the pass reads the
+                -- device cache only unless this is on.
+                checked_func = function()
+                    local settings = saforums_settings()
+                    return (settings:readSetting("saforums_fetch_avatars") or false) == true
+                end,
+                callback = function()
+                    local settings = saforums_settings()
+                    local enabled = settings:readSetting("saforums_fetch_avatars") or false
+                    settings:saveSetting("saforums_fetch_avatars", not enabled)
+                    settings:flush()
+                end,
             },
         },
     }

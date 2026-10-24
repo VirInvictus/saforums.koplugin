@@ -74,6 +74,46 @@ describe("avatars", function()
     end)
 end)
 
+describe("avatars disk-only mode (v0.5.2 default)", function()
+    local dir
+
+    before_each(function()
+        dir = os.tmpname()
+        os.remove(dir)
+        lfs.mkdir(dir)
+    end)
+
+    after_each(function()
+        os.remove(dir .. "/103.gif")
+        lfs.rmdir(dir)
+    end)
+
+    -- The pass froze e-ink devices while each fetch blocked the UI
+    -- thread; disk-only mode must provably never touch the network.
+    local function refusing_session()
+        return {
+            get = function()
+                error("the network must not be touched in disk-only mode")
+            end,
+        }
+    end
+
+    it("serves a cached avatar without the network", function()
+        local handle = io.open(dir .. "/103.gif", "w")
+        handle:write("cached-bytes")
+        handle:close()
+        local path = avatars.ensure(dir, refusing_session(), "103",
+            "https://fi.fixture.invalid/avatars/103.gif", { fetch = false })
+        assert.equals(dir .. "/103.gif", path)
+    end)
+
+    it("returns nil on a cache miss without the network", function()
+        assert.is_nil(avatars.ensure(dir, refusing_session(), "103",
+            "https://fi.fixture.invalid/avatars/103.gif", { fetch = false }))
+        assert.is_nil(lfs.attributes(dir .. "/103.gif", "mode"))
+    end)
+end)
+
 describe("avatars fetch-budget filter", function()
     it("keeps real avatars, drops custom-title art and post icons", function()
         assert.is_truthy(avatars.is_avatar_candidate("https://fi.somethingawful.com/avatars/103.gif"))

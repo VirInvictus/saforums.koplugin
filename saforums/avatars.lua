@@ -45,7 +45,10 @@ end
 
 --- Returns the local cache path for a user id, fetching and storing on a
 --- cache miss. nil when there is nothing usable (no source, fetch failed).
-function avatars.ensure(cache_dir, session, userid, src)
+--- opts.fetch == false: disk-only, never touch the network. That is the
+--- v0.5.2 default: each fetch is a blocking TLS connection on the UI
+--- thread, which froze e-ink devices for as long as the pass took.
+function avatars.ensure(cache_dir, session, userid, src, opts)
     if not userid or not src then return nil end
     if not cache_dir then return nil end
 
@@ -61,6 +64,9 @@ function avatars.ensure(cache_dir, session, userid, src)
     local cached_path = cache_dir .. "/" .. userid .. "." .. ext
     if lfs.attributes(cached_path, "mode") then
         return cached_path
+    end
+    if opts and opts.fetch == false then
+        return nil
     end
 
     local result = session:get(src, {

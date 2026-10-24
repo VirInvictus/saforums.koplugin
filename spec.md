@@ -243,8 +243,10 @@ re-render.
   label doubles as a jump-to-page input.
 - Post layout follows the Typography section: bordered post cards, avatar beside
   the bold author, custom title and gray meta line, left-aligned text. Avatars
-  embed as data URIs; if the device renders them as broken boxes, a one-line
-  switch drops them until the image path is proven.
+  render from the on-device cache (one file per poster, reused forever); network
+  fetching is opt-in via the plugin menu and off by default, because each fetch
+  is a blocking connection on the UI thread (v0.5.2; background fetching is the
+  planned end state).
 - Pages: multi-page threads navigate through a native page-selector bar at
   the bottom of the view (newer / page X of Y / older); page changes fetch
   with `noseen=1`. The 3em frog line shows only on the last page.

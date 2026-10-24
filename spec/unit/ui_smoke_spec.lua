@@ -24,15 +24,26 @@ preload("datastorage", {
     getDataDir = function() return "/tmp/saforums-test" end,
     getFullDataDir = function() return "/tmp/saforums-test" end,
 })
-preload("luasettings", {
-    open = function()
-        return {
-            readSetting = function() return nil end,
-            saveSetting = function() end,
-            flush = function() end,
-        }
-    end,
-})
+preload("luasettings", (function()
+    -- Reads fall through to a shared seed map, and only the avatar toggle
+    -- key persists its writes: cross-test state stays as isolated as the
+    -- old void stub (a list cache one test saves must not leak into the
+    -- next test's ui.new()), while the toggle round-trip stays observable.
+    local store = {}
+    local persistent_keys = { saforums_fetch_avatars = true }
+    return {
+        __store = store,
+        open = function()
+            return {
+                readSetting = function(_, name) return store[name] end,
+                saveSetting = function(_, name, value)
+                    if persistent_keys[name] then store[name] = value end
+                end,
+                flush = function() end,
+            }
+        end,
+    }
+end)())
 preload("ui/network/manager", {
     runWhenOnline = function(_, callback) callback() end,
 })
@@ -350,6 +361,54 @@ describe("device UI (smoke)", function()
         menus[1]:addToMainMenu(menu_items)
         assert.equals("tools", menu_items.saforums.sorting_hint)
         dispatcher_stub.registerAction = function() end
+    end)
+
+    it("the avatar network toggle defaults off and persists a flip", function()
+        -- v0.5.2 regression pin: the pass freezes e-ink devices when it
+        -- fetches, so the network half must stay opt-in through this
+        -- menu item.
+        local luasettings = package.loaded["luasettings"]
+        luasettings.__store["saforums_fetch_avatars"] = nil
+        local plugin = require("main")
+        local menus = {}
+        local instance = plugin.new(plugin, {
+            ui = { menu = { registerToMainMenu = function(_, entry) menus[#menus + 1] = entry end } },
+        })
+        local menu_items = {}
+        instance:addToMainMenu(menu_items)
+        local toggle
+        for _, item in ipairs(menu_items.saforums.sub_item_table) do
+            if item.text == "Fetch avatars over the network" then
+                toggle = item
+            end
+        end
+        assert.is_not_nil(toggle, "menu carries the avatar toggle")
+        assert.is_false(toggle.checked_func())
+        toggle.callback()
+        assert.is_true(toggle.checked_func())
+        toggle.callback()
+        assert.is_false(toggle.checked_func())
+        luasettings.__store["saforums_fetch_avatars"] = nil
+    end)
+
+    it("the avatar pass stays off the network by default", function()
+        -- open_thread with the default settings must never reach the
+        -- session for an avatar (cached faces only, disk reads).
+        local luasettings = package.loaded["luasettings"]
+        luasettings.__store["saforums_fetch_avatars"] = nil
+        local instance = ui.new()
+        local avatar_urls = 0
+        instance.session.get = function(_, url)
+            if url:find("avatar", 1, true) or url:find("customtitles", 1, true) then
+                avatar_urls = avatar_urls + 1
+            end
+            local handle = io.open("spec/fixtures/postspage.html", "r")
+            local fixture = handle:read("*a")
+            handle:close()
+            return { kind = "ok", code = 200, body = fixture }
+        end
+        instance:open_thread({ id = "4231003", title = "t" }, { page = 1, mode = "browse" })
+        assert.equals(0, avatar_urls)
     end)
 end)
 
