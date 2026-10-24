@@ -16,12 +16,9 @@ preload("ui/widget/infomessage", widget)
 preload("ui/widget/inputdialog", widget)
 preload("ui/widget/confirmbox", widget)
 preload("ui/widget/menu", widget)
-preload("ui/uimanager", {
-    show = function() end,
-    close = function() end,
-    nextTick = function(_, callback) callback() end,
-    setDirty = function() end,
-})
+-- ui/uimanager comes from spec.stubs (the recording stub); it loads first
+-- via require("spec.stubs") above, so a local preload here would be dead
+-- and drift out of sync with it.
 preload("datastorage", {
     getSettingsDir = function() return "/tmp/saforums-test" end,
     getDataDir = function() return "/tmp/saforums-test" end,
@@ -234,6 +231,39 @@ describe("device UI (smoke)", function()
         assert.equals(42, chosen.marker)
     end)
 
+    it("showing a menu claims a full-screen ui refresh", function()
+        -- e-ink only redraws explicitly refreshed regions: when a fetch
+        -- toast shares the cycle with a list swap, only the toast's box
+        -- would be queued and the new list would stay off the panel.
+        local uimanager = package.loaded["ui/uimanager"]
+        local first = #uimanager.calls + 1
+        ui.SaforumsUI:show_menu(nil, { { text = "row" } }, function() end)
+        local claimed = false
+        for idx = first, #uimanager.calls do
+            local call = uimanager.calls[idx]
+            if call[1] == "show" and call[3] == "ui" then
+                claimed = true
+            end
+        end
+        assert.is_true(claimed, "show_menu must pass ui to UIManager:show")
+    end)
+
+    it("the thread view claims a full-screen ui refresh when shown", function()
+        -- e-ink regression (Kindle): show() alone enqueues no refresh, and
+        -- the fetching toast's small box refresh suppressed UIManager's
+        -- full-screen fallback, leaving the painted thread invisible until
+        -- the next input event.
+        local uimanager = package.loaded["ui/uimanager"]
+        local view = simple_view({ { author_name = "a", body_html = "x", index = 1 } })
+        local first = #uimanager.calls + 1
+        view:onShow()
+        local call = uimanager.calls[first]
+        assert.is_not_nil(call, "onShow did not touch UIManager")
+        assert.equals("setDirty", call[1])
+        assert.equals(view, call[2])
+        assert.equals("ui", call[3])
+    end)
+
     it("error mapping treats ok as not-an-error and surfaces the rest", function()
         local instance = ui.new()
         assert.is_false(instance:show_result_error(nil))
@@ -273,11 +303,8 @@ describe("device UI (smoke)", function()
         -- ThreadView received the old html_body interface and rendered an
         -- empty frog page. This drives the real open_thread with a canned
         -- session response and asserts posts arrive.
-        local shown
-        package.loaded["ui/uimanager"].show = function(_, widget)
-            shown = widget
-        end
-        package.loaded["ui/uimanager"].setDirty = function() end
+        local uimanager = package.loaded["ui/uimanager"]
+        local first = #uimanager.calls + 1
         local fixture
         do
             local handle = io.open("spec/fixtures/postspage.html", "r")
@@ -290,11 +317,17 @@ describe("device UI (smoke)", function()
             return { kind = "ok", code = 200, body = fixture }
         end
         instance:open_thread({ id = "4231003", title = "t" }, { page = 1, mode = "browse" })
+        local shown
+        for idx = first, #uimanager.calls do
+            local call = uimanager.calls[idx]
+            if call[1] == "show" and call[2] and call[2].posts then
+                shown = call[2]
+            end
+        end
         assert.is_not_nil(shown, "no view was shown")
         assert.equals(3, #shown.posts)
         assert.equals(1, shown.page)
         assert.equals(7, shown.total_pages)
-        package.loaded["ui/uimanager"].show = function() end
     end)
 
     it("main.lua instantiates the way PluginLoader does", function()

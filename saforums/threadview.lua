@@ -608,6 +608,16 @@ function ThreadView:init()
     self[1] = self:build()
 end
 
+-- E-ink panels only redraw regions that get an explicit refresh. A plain
+-- UIManager:show() marks the widget dirty but enqueues no refresh, and when
+-- the fetching toast is alive in the same cycle its small box refresh is
+-- the only one queued, so UIManager's full-screen fallback is suppressed
+-- and the painted thread never reaches the panel until the next input.
+-- Claim the full screen ourselves on show.
+function ThreadView:onShow()
+    UIManager:setDirty(self, "ui")
+end
+
 -- Hold anywhere on a post opens its action menu: hit-test the position
 -- against the card rects recorded at build time, translated from content
 -- space by the container's current scroll offset.

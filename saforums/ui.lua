@@ -1357,7 +1357,10 @@ function SaforumsUI:show_menu(title, items, on_select, on_hold)
         end,
     }
     self._last_menu = menu
-    UIManager:show(menu)
+    -- "ui" claims a full-screen refresh, so the list lands on e-ink even
+    -- when a fetch toast shares the cycle (same reason as
+    -- ThreadView:onShow).
+    UIManager:show(menu, "ui")
     return menu
 end
 

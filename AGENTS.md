@@ -102,8 +102,23 @@ view on synthetic fixture content without a session (delete whenever).
 10. **The uimanager stub race between spec files.** busted loads spec files
     alphabetically; the first `package.preload` registration wins. All spec
     files that stub ui/uimanager must have the same shape (show, close,
-    nextTick, setDirty, scheduleIn). Currently unified in scroll_spec and
-    ui_smoke_spec.
+    nextTick, setDirty, scheduleIn). Unified in spec/stubs.lua, which is
+    also the recording stub (its `calls` list backs the refresh-claim
+    tests); ui_smoke_spec no longer preloads its own.
+
+11. **A plain UIManager:show() enqueues no screen refresh.** E-ink panels
+    only redraw regions that get an explicit refresh. In the open-thread
+    cycle the only queued refresh was the fetching toast's small box
+    (InfoMessage:onShow), which also suppresses UIManager's full-screen
+    fallback, so the painted thread stayed invisible on the Kindle until
+    the next input. kodev never shows this (SDL presents the whole
+    framebuffer per refresh), and the avatar pass's setDirty "full" was
+    accidentally healing the emulator seconds later. Any full-screen show
+    must claim its refresh: UIManager:show(widget, "ui") or an onShow
+    setDirty. EMULATE_READER_FLASH cannot reproduce this (it emulates the
+    blink, not region gating); the working probe pattern wraps
+    Screen.refresh* before requiring ui/uimanager and runs the cycle with
+    the emulator's luajit against the real UIManager.
 
 ## Hard rules specific to this repo
 

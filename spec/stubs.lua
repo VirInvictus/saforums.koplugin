@@ -25,11 +25,22 @@ for _, level in ipairs({ "dbg", "info", "warn", "err" }) do
 end
 preload("logger", logger)
 
+-- Records show/close/setDirty calls so specs can assert UI plumbing (e.g.
+-- the full-screen refresh claims e-ink needs). nextTick still runs inline;
+-- scheduled callbacks stay deferred.
+local uimanager_calls = {}
 preload("ui/uimanager", {
-    show = function() end,
-    close = function() end,
+    calls = uimanager_calls,
+    show = function(_, widget, refreshtype)
+        uimanager_calls[#uimanager_calls + 1] = { "show", widget, refreshtype }
+    end,
+    close = function(_, widget)
+        uimanager_calls[#uimanager_calls + 1] = { "close", widget }
+    end,
     nextTick = function(_, fn) fn() end,
-    setDirty = function() end,
+    setDirty = function(_, widget, refreshtype)
+        uimanager_calls[#uimanager_calls + 1] = { "setDirty", widget, refreshtype }
+    end,
     scheduleIn = function() end,
 })
 
