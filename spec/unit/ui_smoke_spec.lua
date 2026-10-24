@@ -313,7 +313,12 @@ describe("device UI (smoke)", function()
         -- regression: the native pivot's ui rewiring silently no-op'd, so
         -- ThreadView received the old html_body interface and rendered an
         -- empty frog page. This drives the real open_thread with a canned
-        -- session response and asserts posts arrive.
+        -- session response and asserts posts arrive. Avatars stay off:
+        -- the background fetcher is not this test's subject, and its
+        -- default environment needs the real socket library (present on
+        -- device and here, absent on the CI runner).
+        local luasettings = package.loaded["luasettings"]
+        luasettings.__store["saforums_fetch_avatars"] = false
         local uimanager = package.loaded["ui/uimanager"]
         local first = #uimanager.calls + 1
         local fixture
@@ -339,6 +344,7 @@ describe("device UI (smoke)", function()
         assert.equals(3, #shown.posts)
         assert.equals(1, shown.page)
         assert.equals(7, shown.total_pages)
+        luasettings.__store["saforums_fetch_avatars"] = nil
     end)
 
     it("main.lua instantiates the way PluginLoader does", function()
