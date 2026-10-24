@@ -19,11 +19,12 @@ Repo root is the plugin root: `main.lua` and `_meta.lua` install as
   to touch, tests, done-when). Start there for any Wave C/D or loose-end
   item; re-verify cited line numbers only if the clone moved.
 
-## Current state (updated 2026-10-09, late)
+## Current state (updated 2026-10-24)
 
-v0.5.0 released: Wave A (posts-view reading parity) and Wave B (lists and
-bookmarks parity) of PARITY.md are shipped; both waves emulator-verified.
-The ten hard-won lessons below predate them. Next: Wave C (composition,
+v0.5.1 released: batches the gentler avatar pass (2358fd2) and the Kindle
+e-ink full-screen refresh fix (322cf67, lesson 11 below) over v0.5.0's
+Waves A+B. 209 busted tests green. Next: Brandon's Kindle pass on the
+v0.5.1 zip, the public e-reader-thread post, then Wave C (composition,
 draft-file workflow first) and Wave D (gated surfaces).
 
 **Wave A of PARITY.md is implemented on main** (reading parity): token

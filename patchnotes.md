@@ -1,5 +1,22 @@
 # patchnotes
 
+## v0.5.1
+
+Two device fixes over v0.5.0; no new surfaces.
+
+- Opening a thread no longer needs a page-turn press to appear on Kindle.
+  The thread view and the list menus now claim a full-screen refresh when
+  they are shown: a plain show enqueues no refresh of its own, and the
+  fetching toast's small box refresh was suppressing KOReader's
+  full-screen fallback, leaving the painted page off the e-ink panel. The
+  emulator redraws the whole framebuffer on every refresh, which is why
+  kodev never showed it.
+- The avatar pass is gentler: custom-title art and post icons no longer
+  enter it (each was costing a blocking fetch per decorated poster, fetched
+  as a 40px avatar), the yield between fetches widens from 0.05s to 0.25s,
+  and avatar fetches carry their own 5s block / 15s total timeouts so a
+  dead image cannot stall the reader.
+
 ## v0.5.0
 
 Wave B of the parity program: the lists and the bookmark shelf catch up to

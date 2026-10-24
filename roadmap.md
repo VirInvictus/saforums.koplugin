@@ -16,14 +16,16 @@ then the kodev emulator (the only test surface per AGENTS.md), then Brandon's
 own Kindle pass. Cited line numbers refer to the clone at its current HEAD
 and should be re-verified if the clone moves.
 
-## Current state (2026-10-09, late)
+## Current state (2026-10-24)
 
-v0.5.0 is tagged and released (zip attached, CI green): Wave A reading
-parity, Wave B lists and bookmarks parity. On main, committed but untagged:
-the back-stack (menus stay beneath screens they open) and the gentler avatar
-pass. Next release v0.5.1 batches those. The public e-reader-thread post is
-drafted and waiting on Brandon. After that: Wave C (composition), Wave D
-(gated surfaces), and the loose ends below.
+v0.5.1 is tagged and released: over v0.5.0 it carries the gentler avatar
+pass (2358fd2) and the Kindle e-ink full-screen refresh fix (322cf67; a
+plain UIManager show enqueues no refresh, so the view and the list menus
+now claim one - the emulator had been masking it by redrawing the whole
+framebuffer per refresh, and the avatar pass's "full" had been healing it
+there). The public e-reader-thread post is drafted and waiting on Brandon.
+After that: Wave C (composition), Wave D (gated surfaces), and the loose
+ends below.
 
 ## Loose ends (small, active)
 
@@ -66,10 +68,9 @@ blame the right party). `dragon-agents:slop-reader`-shaped review of the
 gettext strings in `main.lua`, `saforums/ui.lua`, `saforums/threadview.lua`.
 Done-when: Brandon reads every string without wincing.
 
-### L6. v0.5.1
-Cut when the batch feels right: back-stack + avatar pass (+ L1-L5 whatever
-lands first). Same release procedure as v0.5.0 (release-auditor pre-flight,
-verbatim tag, sweep).
+### L6. v0.5.1 (DONE, 2026-10-24)
+Cut as the avatar pass + Kindle e-ink refresh fix batch (2358fd2, 322cf67).
+L1-L5 stay open for later releases.
 
 ## Dormant EPUB track (parked; moves only on a fresh decision)
 
@@ -387,7 +388,8 @@ Goal: know what the account can do; fail loud.
 
 ## Distribution (Phase 5, remaining)
 
-- [ ] v0.5.1 release (back-stack, avatar pass, loose ends L1-L5 as they land).
+- [x] v0.5.1 release (avatar pass, Kindle e-ink refresh fix; L1-L5 stay
+      open for later batches).
 - [ ] Brandon's Kindle pass on the release zip (his initiative, his policy).
 - [ ] The e-reader-thread post (drafted; posted when he is satisfied).
 - [ ] On-device App Store cold-install check; Storefront at its next catalog
